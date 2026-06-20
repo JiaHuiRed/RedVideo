@@ -3,7 +3,7 @@
 > **Windows 桌面视频播放器。** mpv 引擎、macOS 风格界面、零损耗。
 > _A Windows desktop video player — libmpv-powered, macOS‑inspired, zero quality loss._
 
-[![版本](https://badgen.net/badge/版本/0.1.0/red)](CHANGELOG.md)
+[![版本](https://badgen.net/badge/版本/0.1.1/red)](CHANGELOG.md)
 [![平台](https://badgen.net/badge/平台/Windows%2010%2F11/blue)](https://python.org)
 [![Python](https://badgen.net/badge/Python/3.11/3776ab)](https://python.org)
 [![PyQt6](https://badgen.net/badge/PyQt6/6.11/green)](https://pypi.org/project/PyQt6/)

@@ -1,5 +1,18 @@
 # RedVideo 更新日志
 
+## 0.1.1（2026-06-20）
+
+> Unity 图标不再依赖系统主题，三个主题按钮都清晰了。
+
+### 🐛 修复
+
+- **Windows 按钮不显示** — `QIcon.fromTheme()` 在 Windows 返回空图标，改用 Unicode 符号（▶ ⏸ 🔊 ⛶），字号加大、颜色提亮
+- **主题菜单 ✅ 标记残留** — 加 `QActionGroup.setExclusive(True)` 互斥，切换只勾一个
+- **点击文件后闪退** — `QFileDialog` 加 `DontUseNativeDialog` 选项
+- **启动时找不到 libmpv** — 添加 `sys._MEIPASS` 和 `exe_dir/bin` 到 PATH
+- **src/resources 找不到** — 移除 `--specpath` 让 spec 生成在项目根，路径自然解析
+- **默认打开方式传参未处理** — `main.py` 提取 `sys.argv[1]` 传给 `MainWindow` 自动加载
+
 ## 0.1.0（2026-06-20）
 
 ### ✨ 新功能
