@@ -12,7 +12,14 @@ def _base() -> str:
 
 BASE = _base()
 sys.path.insert(0, BASE)
-os.environ["PATH"] = os.path.join(BASE, "bin") + os.pathsep + os.environ.get("PATH", "")
+
+# 编译后 DLL 在 exe 同级 bin/，未打包进 _MEIPASS
+if getattr(sys, "frozen", False):
+    exe_dir = os.path.dirname(sys.executable)
+    dll_dir = os.path.join(exe_dir, "bin")
+else:
+    dll_dir = os.path.join(BASE, "bin")
+os.environ["PATH"] = dll_dir + os.pathsep + os.environ.get("PATH", "")
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
