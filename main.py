@@ -3,7 +3,14 @@
 import sys
 import os
 
-BASE = os.path.dirname(os.path.abspath(__file__))
+
+def _base() -> str:
+    if getattr(sys, "frozen", False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+BASE = _base()
 sys.path.insert(0, BASE)
 os.environ["PATH"] = os.path.join(BASE, "bin") + os.pathsep + os.environ.get("PATH", "")
 

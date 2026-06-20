@@ -1,5 +1,6 @@
 """RedVideo 主窗口 — 无框 + 缩放 + 毛玻璃 + 主题切换"""
 
+import sys
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
@@ -20,7 +21,15 @@ from player.titlebar import Titlebar, TITLEBAR_HEIGHT
 from player.windows_effects import enable_acrylic
 
 RESIZE_MARGIN = 6
-THEMES_DIR = Path(__file__).resolve().parent.parent / "resources" / "themes"
+
+
+def _base() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent.parent
+
+
+THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}
 THEME_LIST = list(THEME_NAMES)
 
