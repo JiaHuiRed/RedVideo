@@ -1,0 +1,82 @@
+/* RedVideo 深蓝模式 — 深蓝毛玻璃 */
+
+QMainWindow { background: #0a0e1a; }
+
+#Titlebar {
+    background: rgba(10, 14, 26, 0.85);
+    border-bottom: 1px solid rgba(100,180,255,0.06);
+}
+#TitleLabel { color: rgba(180,210,240,0.8); font-size: 12px; font-weight: 500; }
+#TrafficButton { background: transparent; border: none; }
+
+#MenuButton {
+    background: transparent; border: none; border-radius: 4px;
+    color: rgba(180,210,240,0.45); font-size: 14px;
+    padding: 4px 8px; min-width: 24px; min-height: 24px;
+}
+#MenuButton:hover { background: rgba(100,180,255,0.1); color: rgba(180,210,240,0.85); }
+#MenuButton::menu-indicator { image: none; }
+
+QMenu {
+    background: rgba(10,14,26,0.96); color: rgba(180,210,240,0.8);
+    border: 1px solid rgba(100,180,255,0.08); border-radius: 6px; padding: 4px;
+}
+QMenu::item { padding: 6px 24px; border-radius: 4px; }
+QMenu::item:selected { background: rgba(58,123,213,0.4); }
+QMenu::item:disabled { color: rgba(180,210,240,0.2); }
+QMenu::separator { height: 1px; background: rgba(100,180,255,0.06); margin: 4px 12px; }
+
+#VideoContainer { background: #000; }
+#Placeholder { background: #000; }
+
+#ControlsBar {
+    background: rgba(10, 14, 26, 0.88);
+    border-top: 1px solid rgba(100,180,255,0.06);
+}
+#BtnPlay {
+    background: transparent; border: none; border-radius: 18px;
+    color: rgba(180,210,240,0.85); font-size: 16px;
+    min-width: 36px; min-height: 36px;
+}
+#BtnPlay:hover { background: rgba(100,180,255,0.08); }
+#BtnPlay:pressed { background: rgba(100,180,255,0.15); }
+
+#SeekSlider::groove:horizontal { background: rgba(100,180,255,0.12); height: 3px; border-radius: 2px; }
+#SeekSlider::handle:horizontal { background: #3a7bd5; width: 12px; height: 12px; margin: -5px 0; border-radius: 6px; }
+#SeekSlider::handle:horizontal:hover { background: #5a9df5; width: 14px; height: 14px; margin: -6px 0; border-radius: 7px; }
+#SeekSlider::sub-page:horizontal { background: #3a7bd5; border-radius: 2px; }
+
+#TimeLabel { color: rgba(180,210,240,0.35); font-size: 11px; font-family: "Consolas","Courier New",monospace; }
+
+#BtnMute, #BtnFullscreen {
+    background: transparent; border: none; border-radius: 14px;
+    color: rgba(180,210,240,0.5); min-width: 28px; min-height: 28px;
+}
+#BtnMute:hover, #BtnFullscreen:hover { background: rgba(100,180,255,0.08); color: rgba(180,210,240,0.9); }
+
+#VolSlider::groove:horizontal { background: rgba(100,180,255,0.12); height: 3px; border-radius: 2px; }
+#VolSlider::handle:horizontal { background: #3a7bd5; width: 10px; height: 10px; margin: -4px 0; border-radius: 5px; }
+#VolSlider::sub-page:horizontal { background: #3a7bd5; border-radius: 2px; }
+
+#PlaylistPanel {
+    background: rgba(10,14,26,0.9);
+    border-left: 1px solid rgba(100,180,255,0.06);
+}
+#PlaylistHeader { background: transparent; border-bottom: 1px solid rgba(100,180,255,0.06); }
+#PlaylistTitle { color: rgba(180,210,240,0.5); font-size: 11px; font-weight: 600; letter-spacing: 0.5px; }
+#BtnClear {
+    background: transparent; border: 1px solid rgba(100,180,255,0.15); border-radius: 4px;
+    color: rgba(180,210,240,0.4); font-size: 11px; padding: 2px 8px;
+}
+#BtnClear:hover { background: rgba(100,180,255,0.08); color: rgba(180,210,240,0.85); }
+#PlaylistList { background: transparent; color: rgba(180,210,240,0.75); border: none; font-size: 12px; outline: none; }
+#PlaylistList::item { padding: 6px 12px; border-bottom: 1px solid rgba(100,180,255,0.03); }
+#PlaylistList::item:selected { background: rgba(58,123,213,0.35); color: #fff; }
+#PlaylistList::item:hover { background: rgba(100,180,255,0.05); }
+
+#MainSplitter::handle { background: rgba(100,180,255,0.06); }
+
+QScrollBar:vertical { background: transparent; width: 6px; margin: 0; }
+QScrollBar::handle:vertical { background: rgba(100,180,255,0.1); border-radius: 3px; min-height: 30px; }
+QScrollBar::handle:vertical:hover { background: rgba(100,180,255,0.18); }
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
