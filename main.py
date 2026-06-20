@@ -28,6 +28,12 @@ from player.window import MainWindow
 
 
 def main():
+    # 提取命令行传入的文件路径（Windows 打开方式传参）
+    file_path = None
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    if args:
+        file_path = os.path.abspath(args[0])
+
     if hasattr(Qt, "HighDpiScaleFactorRoundingPolicy"):
         app = QApplication(sys.argv)
         app.setStyle("Fusion")
@@ -37,7 +43,7 @@ def main():
     app.setApplicationName("RedVideo")
     app.setOrganizationName("RedStudio")
 
-    win = MainWindow()
+    win = MainWindow(file_path=file_path)
     win.show()
     sys.exit(app.exec())
 

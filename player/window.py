@@ -49,9 +49,10 @@ def apply_theme(name: str) -> None:
 class MainWindow(QMainWindow):
     """RedVideo 主窗口 — 无框窗口 + macOS 风格标题栏 + 毛玻璃 + 四边缩放。"""
 
-    def __init__(self, theme: str = "night"):
+    def __init__(self, theme: str = "night", file_path: str | None = None):
         super().__init__()
         self._theme = theme
+        self._startup_file = file_path
 
         # ── 无框窗口 ──
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -85,6 +86,11 @@ class MainWindow(QMainWindow):
         self._position_timer.start()
 
         Shortcuts(self)
+
+        # 从命令行传入的视频路径（Windows 打开方式）
+        if self._startup_file:
+            self.playlist.add_files([self._startup_file])
+            self._play_file(self._startup_file)
 
     # ── 缩放 ──
 
