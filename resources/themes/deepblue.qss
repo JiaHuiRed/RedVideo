@@ -35,11 +35,11 @@ QMenu::separator { height: 1px; background: rgba(100,180,255,0.06); margin: 4px 
 }
 #BtnPlay {
     background: transparent; border: none; border-radius: 18px;
-    color: rgba(180,210,240,0.85); font-size: 16px;
+    color: rgba(180,220,255,0.95); font-size: 20px;
     min-width: 36px; min-height: 36px;
 }
-#BtnPlay:hover { background: rgba(100,180,255,0.08); }
-#BtnPlay:pressed { background: rgba(100,180,255,0.15); }
+#BtnPlay:hover { background: rgba(100,180,255,0.12); color: #fff; }
+#BtnPlay:pressed { background: rgba(100,180,255,0.2); }
 
 #SeekSlider::groove:horizontal { background: rgba(100,180,255,0.12); height: 3px; border-radius: 2px; }
 #SeekSlider::handle:horizontal { background: #3a7bd5; width: 12px; height: 12px; margin: -5px 0; border-radius: 6px; }
@@ -50,9 +50,10 @@ QMenu::separator { height: 1px; background: rgba(100,180,255,0.06); margin: 4px 
 
 #BtnMute, #BtnFullscreen {
     background: transparent; border: none; border-radius: 14px;
-    color: rgba(180,210,240,0.5); min-width: 28px; min-height: 28px;
+    color: rgba(160,210,255,0.75); font-size: 16px;
+    min-width: 28px; min-height: 28px;
 }
-#BtnMute:hover, #BtnFullscreen:hover { background: rgba(100,180,255,0.08); color: rgba(180,210,240,0.9); }
+#BtnMute:hover, #BtnFullscreen:hover { background: rgba(100,180,255,0.12); color: #fff; }
 
 #VolSlider::groove:horizontal { background: rgba(100,180,255,0.12); height: 3px; border-radius: 2px; }
 #VolSlider::handle:horizontal { background: #3a7bd5; width: 10px; height: 10px; margin: -4px 0; border-radius: 5px; }

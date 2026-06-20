@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer, QRect, QPoint
 from PyQt6.QtGui import (
-    QDragEnterEvent, QDropEvent, QAction, QMouseEvent, QCursor,
+    QDragEnterEvent, QDropEvent, QAction, QActionGroup, QMouseEvent, QCursor,
 )
 
 from player.mpv_widget import MpvWidget
@@ -217,12 +217,15 @@ class MainWindow(QMainWindow):
 
         # 主题切换
         theme_menu = menu.addMenu("主题")
+        theme_group = QActionGroup(self)
+        theme_group.setExclusive(True)
         self._theme_actions: dict[str, QAction] = {}
         for name in THEME_LIST:
             act = QAction(THEME_NAMES[name], self)
             act.setCheckable(True)
             act.setChecked(name == self._theme)
             act.triggered.connect(lambda checked, n=name: self.switch_theme(n))
+            theme_group.addAction(act)
             theme_menu.addAction(act)
             self._theme_actions[name] = act
 

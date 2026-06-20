@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (
     QPushButton, QSizePolicy,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QIcon
 
 
 def _fmt(seconds: float) -> str:
@@ -50,7 +49,7 @@ class ControlsBar(QWidget):
         self.btn_play = QPushButton()
         self.btn_play.setObjectName("BtnPlay")
         self.btn_play.setFixedSize(36, 36)
-        self.btn_play.setIcon(QIcon.fromTheme("media-playback-start"))
+        self.btn_play.setText("\u25B6")
         self.btn_play.clicked.connect(self.play_toggled)
         layout.addWidget(self.btn_play)
 
@@ -74,7 +73,7 @@ class ControlsBar(QWidget):
         self.btn_mute = QPushButton()
         self.btn_mute.setObjectName("BtnMute")
         self.btn_mute.setFixedSize(28, 28)
-        self.btn_mute.setIcon(QIcon.fromTheme("audio-volume-high"))
+        self.btn_mute.setText("\U0001F50A")
         self.btn_mute.clicked.connect(self._toggle_mute)
         layout.addWidget(self.btn_mute)
 
@@ -90,7 +89,7 @@ class ControlsBar(QWidget):
         self.btn_fs = QPushButton()
         self.btn_fs.setObjectName("BtnFullscreen")
         self.btn_fs.setFixedSize(28, 28)
-        self.btn_fs.setIcon(QIcon.fromTheme("view-fullscreen"))
+        self.btn_fs.setText("\u26F6")
         self.btn_fs.clicked.connect(self.fullscreen_toggled)
         layout.addWidget(self.btn_fs)
 
@@ -104,15 +103,13 @@ class ControlsBar(QWidget):
         self.lbl_time.setText(f"{_fmt(pos)} / {_fmt(duration)}")
 
     def set_paused(self, paused: bool) -> None:
-        icon = "media-playback-start" if paused else "media-playback-pause"
-        self.btn_play.setIcon(QIcon.fromTheme(icon))
+        self.btn_play.setText("\u25B6" if paused else "\u23F8")
 
     def set_volume(self, vol: int) -> None:
         self.vol_slider.setValue(vol)
 
     def set_muted(self, muted: bool) -> None:
-        icon = "audio-volume-muted" if muted else "audio-volume-high"
-        self.btn_mute.setIcon(QIcon.fromTheme(icon))
+        self.btn_mute.setText("\U0001F507" if muted else "\U0001F50A")
 
     # ── 内部 ──
 
@@ -122,6 +119,5 @@ class ControlsBar(QWidget):
         self.seeked.emit(ratio * self._duration)
 
     def _toggle_mute(self):
-        self.btn_mute.setIcon(QIcon.fromTheme(
-            "audio-volume-high" if "muted" in self.btn_mute.icon().name() else "audio-volume-muted"
-        ))
+        muted = self.btn_mute.text() == "\U0001F507"
+        self.btn_mute.setText("\U0001F50A" if muted else "\U0001F507")
