@@ -6,5 +6,6 @@ dist/
 build/
 build_tmp/
 bin/
+*.spec
 .DS_Store
 Thumbs.db

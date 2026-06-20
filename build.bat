@@ -25,7 +25,6 @@ pyinstaller --onefile --windowed ^
     --add-data "resources;resources" ^
     --distpath dist ^
     --workpath build_tmp ^
-    --specpath build_tmp ^
     --noconfirm ^
     main.py
 
