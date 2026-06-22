@@ -16,6 +16,7 @@ import shutil
 
 BIN_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin")
 SZ_EXE = os.path.join(BIN_DIR, "7zr.exe")
+SZ_URL = "https://www.7-zip.org/a/7zr.exe"
 MPV_API = "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest"
 
 
@@ -25,7 +26,22 @@ def _progress(cur: int, total: int) -> None:
     print(f"\r  [{bar}] {pct}%", end="", flush=True)
 
 
+def ensure_7zr() -> None:
+    """如果 7zr.exe 不存在则从 7-zip.org 下载。"""
+    if os.path.exists(SZ_EXE):
+        return
+    print(">> 下载 7zr.exe...")
+    os.makedirs(BIN_DIR, exist_ok=True)
+    req = urllib.request.Request(SZ_URL, headers={"User-Agent": "RedVideo"})
+    with urllib.request.urlopen(req) as r:
+        data = r.read()
+    with open(SZ_EXE, "wb") as f:
+        f.write(data)
+    print(f"   已保存到 {SZ_EXE}")
+
+
 def download_mpv() -> None:
+    ensure_7zr()
     print(">> 获取最新 mpv 版本信息...")
     req = urllib.request.Request(MPV_API, headers={"User-Agent": "RedVideo/0.0.1"})
     with urllib.request.urlopen(req) as r:
