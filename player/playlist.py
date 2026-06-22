@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QLabel, QPushButton, QHBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QLabel, QPushButton, QHBoxLayout, QSizePolicy
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
@@ -16,7 +16,9 @@ class PlaylistPanel(QWidget):
         super().__init__(parent)
         self.setObjectName("PlaylistPanel")
         self.setAcceptDrops(True)
-        self.setFixedWidth(260)
+        self.setMinimumWidth(160)
+        self.setMaximumWidth(480)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

@@ -119,10 +119,3 @@ class MpvWidget(QWidget):
         except Exception:
             pass
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        if hasattr(self, "_mpv") and self._mpv:
-            try:
-                self._mpv.wid = str(int(self.winId()))
-            except Exception:
-                pass

@@ -1,5 +1,22 @@
 # RedVideo 更新日志
 
+## 0.2.0（2026-06-22）
+
+### ✨ 新功能
+
+- **标题栏版本标签** — 交通灯右侧显示 `v0.2.0`，版本号由 `window.py` 中 `VERSION` 常量统一管理，升级时只需改一处
+
+### ♻️ 重构 / 优化
+
+- **进度更新改为信号驱动** — 删除 250ms 定时器轮询，改用 mpv `time-pos` / `duration` 事件信号直接驱动控制栏，响应更即时，CPU 占用降低
+- **静音状态管理** — `ControlsBar` 新增 `mute_toggled` 信号，删除原来靠按钮 emoji 文字反推状态的脆弱逻辑，由 `MainWindow.toggle_mute` 统一处理
+- **删除 `resizeEvent` 中多余的 wid 重设** — mpv 嵌入后窗口句柄不变，resize 由系统通知渲染器，手动重设无效且可能引起闪烁
+- **集中管理媒体扩展名** — 提取 `MEDIA_EXTS` / `MEDIA_FILTER` 模块级常量，消除 `open_file` 与 `_open_directory` 两处重复且不一致的列表（补齐 `.ogg` / `.opus`）
+- **播放列表宽度可调** — 将 `setFixedWidth(260)` 改为 `setMinimumWidth(160)` + `setMaximumWidth(480)`，Splitter 拖拽手柄现在生效
+- **删除 placeholder 死代码** — `placeholder` widget 从未可见，连同 4 个 QSS 文件中的 `#Placeholder` 规则一并移除
+- **简化 HighDPI 分支** — 两分支代码完全相同，合并为一行；`app.setStyle("Fusion")` 始终生效
+- **删除 `import math`** — `controls.py` 中从未使用
+
 ## 0.1.1（2026-06-20）
 
 > Unity 图标不再依赖系统主题，三个主题按钮都清晰了。

@@ -1,7 +1,5 @@
 """播放控制栏 — 进度条/时间/音量/全屏"""
 
-import math
-
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QSlider, QLabel,
     QPushButton, QSizePolicy,
@@ -27,6 +25,7 @@ class ControlsBar(QWidget):
     play_toggled = pyqtSignal()
     seeked = pyqtSignal(float)          # 拖拽进度条到某位置
     volume_changed = pyqtSignal(int)
+    mute_toggled = pyqtSignal()
     fullscreen_toggled = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None):
@@ -74,7 +73,7 @@ class ControlsBar(QWidget):
         self.btn_mute.setObjectName("BtnMute")
         self.btn_mute.setFixedSize(28, 28)
         self.btn_mute.setText("\U0001F50A")
-        self.btn_mute.clicked.connect(self._toggle_mute)
+        self.btn_mute.clicked.connect(self.mute_toggled)
         layout.addWidget(self.btn_mute)
 
         self.vol_slider = QSlider(Qt.Orientation.Horizontal)
@@ -117,7 +116,3 @@ class ControlsBar(QWidget):
         self._slider_dragging = False
         ratio = self.slider.value() / 10000.0
         self.seeked.emit(ratio * self._duration)
-
-    def _toggle_mute(self):
-        muted = self.btn_mute.text() == "\U0001F507"
-        self.btn_mute.setText("\U0001F50A" if muted else "\U0001F507")

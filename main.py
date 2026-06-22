@@ -34,11 +34,8 @@ def main():
     if args:
         file_path = os.path.abspath(args[0])
 
-    if hasattr(Qt, "HighDpiScaleFactorRoundingPolicy"):
-        app = QApplication(sys.argv)
-        app.setStyle("Fusion")
-    else:
-        app = QApplication(sys.argv)
+    app = QApplication(sys.argv)
+    app.setStyle("Fusion")
 
     app.setApplicationName("RedVideo")
     app.setOrganizationName("RedStudio")

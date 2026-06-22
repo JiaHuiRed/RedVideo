@@ -40,7 +40,7 @@ class Titlebar(QWidget):
     minimize_clicked = pyqtSignal()
     maximize_clicked = pyqtSignal()
 
-    def __init__(self, title: str = "RedVideo", parent=None):
+    def __init__(self, title: str = "RedVideo", version: str = "", parent=None):
         super().__init__(parent)
         self.setFixedHeight(TITLEBAR_HEIGHT)
         self.setObjectName("Titlebar")
@@ -65,6 +65,13 @@ class Titlebar(QWidget):
         layout.addWidget(self.btn_close)
         layout.addWidget(self.btn_minimize)
         layout.addWidget(self.btn_maximize)
+
+        # 版本标签
+        if version:
+            self.version_label = QLabel(f"v{version}")
+            self.version_label.setObjectName("VersionLabel")
+            layout.addSpacing(6)
+            layout.addWidget(self.version_label)
 
         # 标题
         self.title_label = QLabel(title)

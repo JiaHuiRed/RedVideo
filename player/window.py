@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (
     QFileDialog, QSplitter, QMenu, QToolButton, QApplication,
     QStyle,
 )
-from PyQt6.QtCore import Qt, QTimer, QRect, QPoint
+from PyQt6.QtCore import Qt, QRect, QPoint
 from PyQt6.QtGui import (
     QDragEnterEvent, QDropEvent, QAction, QActionGroup, QMouseEvent, QCursor,
 )
@@ -29,9 +29,18 @@ def _base() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
+VERSION = "0.2.0"
+
 THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}
 THEME_LIST = list(THEME_NAMES)
+
+MEDIA_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
+              ".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus"}
+MEDIA_FILTER = (
+    "媒体文件 (*.mp4 *.mkv *.avi *.mov *.wmv *.flv *.webm"
+    " *.mp3 *.flac *.wav *.m4a *.aac *.ogg *.opus);;所有文件 (*)"
+)
 
 
 def apply_theme(name: str) -> None:
@@ -79,11 +88,6 @@ class MainWindow(QMainWindow):
         self._build_titlebar()
         self._build_ui()
         self._connect_signals()
-
-        self._position_timer = QTimer(self)
-        self._position_timer.setInterval(250)
-        self._position_timer.timeout.connect(self._poll_position)
-        self._position_timer.start()
 
         Shortcuts(self)
 
@@ -180,7 +184,7 @@ class MainWindow(QMainWindow):
     # ── 构建 UI ──
 
     def _build_titlebar(self):
-        self.titlebar = Titlebar("RedVideo")
+        self.titlebar = Titlebar("RedVideo", version=VERSION)
         self.titlebar.close_clicked.connect(self.close)
         self.titlebar.minimize_clicked.connect(self.showMinimized)
         self.titlebar.maximize_clicked.connect(self._toggle_maximize)
@@ -261,15 +265,11 @@ class MainWindow(QMainWindow):
         self.mpv = MpvWidget()
         vl.addWidget(self.mpv, 1)
 
-        self.placeholder = QWidget()
-        self.placeholder.setObjectName("Placeholder")
-        vl.addWidget(self.placeholder)
-
         splitter.addWidget(self.video_container)
 
         self.playlist = PlaylistPanel()
         splitter.addWidget(self.playlist)
-        splitter.setSizes([1, 0])
+        splitter.setSizes([1020, 260])
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, True)
 
@@ -283,11 +283,14 @@ class MainWindow(QMainWindow):
         c.play_toggled.connect(self.toggle_play)
         c.seeked.connect(lambda pos: self.mpv.seek(pos))
         c.volume_changed.connect(self.mpv.set_volume)
+        c.mute_toggled.connect(self.toggle_mute)
         c.fullscreen_toggled.connect(self.toggle_fullscreen)
 
         m = self.mpv
         m.file_loaded.connect(self._on_file_loaded)
         m.paused_changed.connect(c.set_paused)
+        m.position_changed.connect(lambda pos: c.update_time(pos, m.duration))
+        m.duration_changed.connect(lambda dur: c.update_time(m.time_pos, dur))
 
         p = self.playlist
         p.item_activated.connect(self._play_file)
@@ -319,9 +322,7 @@ class MainWindow(QMainWindow):
     def open_file(self):
         opts = QFileDialog.Option.DontUseNativeDialog
         paths, _ = QFileDialog.getOpenFileNames(
-            self, "打开媒体文件", "",
-            "媒体文件 (*.mp4 *.mkv *.avi *.mov *.wmv *.flv *.webm *.mp3 *.flac *.wav *.m4a *.aac);;所有文件 (*)",
-            options=opts,
+            self, "打开媒体文件", "", MEDIA_FILTER, options=opts,
         )
         if paths:
             self.playlist.add_files(paths)
@@ -332,9 +333,7 @@ class MainWindow(QMainWindow):
         d = QFileDialog.getExistingDirectory(self, "选择文件夹", options=opts)
         if not d:
             return
-        exts = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
-                ".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus"}
-        files = sorted([str(p) for p in Path(d).iterdir() if p.suffix.lower() in exts])
+        files = sorted([str(p) for p in Path(d).iterdir() if p.suffix.lower() in MEDIA_EXTS])
         if files:
             self.playlist.add_files(files)
             self._play_file(files[0])
@@ -343,8 +342,6 @@ class MainWindow(QMainWindow):
         self.mpv.open(path)
         self._playlist_visible = True
         self.playlist.setVisible(True)
-        if not self.isFullScreen():
-            self._show_placeholder(False)
 
     def _on_file_loaded(self, path: str):
         self.titlebar.set_title(f"RedVideo — {Path(path).name}")
@@ -414,23 +411,8 @@ class MainWindow(QMainWindow):
             if not self.mpv.filename:
                 self._play_file(urls[0])
 
-    # ── 位置轮询 ──
-
-    def _poll_position(self):
-        try:
-            if self.mpv.filename:
-                self.controls.update_time(self.mpv.time_pos, self.mpv.duration)
-        except Exception:
-            pass
-
-    # ── 占位显示 ──
-
-    def _show_placeholder(self, show: bool):
-        self.placeholder.setVisible(show)
-
     # ── 关闭 ──
 
     def closeEvent(self, event):
-        self._position_timer.stop()
         self.mpv.cleanup()
         super().closeEvent(event)
