@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QSlider, QLabel,
     QPushButton, QSizePolicy,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 
 def _fmt(seconds: float) -> str:
@@ -23,7 +23,9 @@ class ControlsBar(QWidget):
     """底部控制栏：播放/暂停 → 进度条 → 时间 → 音量 → 全屏"""
 
     play_toggled = pyqtSignal()
-    seeked = pyqtSignal(float)          # 拖拽进度条到某位置
+    seeked = pyqtSignal(float)
+    prev_clicked = pyqtSignal()
+    next_clicked = pyqtSignal()
     volume_changed = pyqtSignal(int)
     mute_toggled = pyqtSignal()
     fullscreen_toggled = pyqtSignal()
@@ -34,6 +36,10 @@ class ControlsBar(QWidget):
 
         self._slider_dragging = False
         self._duration: float = 0.0
+        self._pending_time = (0.0, 0.0)
+        self._ui_timer = QTimer(self)
+        self._ui_timer.setSingleShot(True)
+        self._ui_timer.timeout.connect(self._flush_time)
 
         self._build_ui()
 
@@ -44,13 +50,24 @@ class ControlsBar(QWidget):
         layout.setContentsMargins(12, 4, 12, 8)
         layout.setSpacing(8)
 
-        # ── 播放/暂停 ──
-        self.btn_play = QPushButton()
+        # ── 播放控制 ──
+        self.btn_prev = QPushButton("⏮")
+        self.btn_prev.setObjectName("BtnPrev")
+        self.btn_prev.setFixedSize(36, 36)
+        self.btn_prev.clicked.connect(self.prev_clicked)
+        layout.addWidget(self.btn_prev)
+
+        self.btn_play = QPushButton("▶")
         self.btn_play.setObjectName("BtnPlay")
         self.btn_play.setFixedSize(36, 36)
-        self.btn_play.setText("\u25B6")
         self.btn_play.clicked.connect(self.play_toggled)
         layout.addWidget(self.btn_play)
+
+        self.btn_next = QPushButton("⏭")
+        self.btn_next.setObjectName("BtnNext")
+        self.btn_next.setFixedSize(36, 36)
+        self.btn_next.clicked.connect(self.next_clicked)
+        layout.addWidget(self.btn_next)
 
         # ── 进度条 ──
         self.slider = QSlider(Qt.Orientation.Horizontal)
@@ -69,10 +86,9 @@ class ControlsBar(QWidget):
         layout.addWidget(self.lbl_time)
 
         # ── 音量 ──
-        self.btn_mute = QPushButton()
+        self.btn_mute = QPushButton("🔊")
         self.btn_mute.setObjectName("BtnMute")
         self.btn_mute.setFixedSize(28, 28)
-        self.btn_mute.setText("\U0001F50A")
         self.btn_mute.clicked.connect(self.mute_toggled)
         layout.addWidget(self.btn_mute)
 
@@ -85,10 +101,9 @@ class ControlsBar(QWidget):
         layout.addWidget(self.vol_slider)
 
         # ── 全屏 ──
-        self.btn_fs = QPushButton()
+        self.btn_fs = QPushButton("⛶")
         self.btn_fs.setObjectName("BtnFullscreen")
         self.btn_fs.setFixedSize(28, 28)
-        self.btn_fs.setText("\u26F6")
         self.btn_fs.clicked.connect(self.fullscreen_toggled)
         layout.addWidget(self.btn_fs)
 
@@ -99,16 +114,21 @@ class ControlsBar(QWidget):
         if not self._slider_dragging and duration > 0:
             ratio = min(1.0, pos / duration) if duration else 0
             self.slider.setValue(int(ratio * 10000))
+        self._pending_time = (pos, duration)
+        self._ui_timer.start(100)
+
+    def _flush_time(self) -> None:
+        pos, duration = self._pending_time
         self.lbl_time.setText(f"{_fmt(pos)} / {_fmt(duration)}")
 
     def set_paused(self, paused: bool) -> None:
-        self.btn_play.setText("\u25B6" if paused else "\u23F8")
+        self.btn_play.setText("▶" if paused else "⏸")
 
     def set_volume(self, vol: int) -> None:
         self.vol_slider.setValue(vol)
 
     def set_muted(self, muted: bool) -> None:
-        self.btn_mute.setText("\U0001F507" if muted else "\U0001F50A")
+        self.btn_mute.setText("🔇" if muted else "🔊")
 
     # ── 内部 ──
 

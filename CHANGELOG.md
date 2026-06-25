@@ -1,5 +1,23 @@
 # RedVideo 更新日志
 
+## 0.3.0（2026-06-25）
+
+### ✨ 新功能
+
+- **单实例锁** — `main.py` 用 `QLocalServer` 监听二次打开的文件，不再弹出新窗口，文件追加到已有实例的播放列表
+- **上一曲 / 下一曲** — 底部栏新增 `⏮` `⏭` 按钮，`playlist.py` 提供 `prev_file()` / `next_file()` 导航，双击播放列表项自动切歌
+- **窗口图标** — `resources/icon.ico` 设为窗口和任务栏图标
+
+### 🐛 修复
+
+- **底部栏按钮不显示自定义图标** — 夜间/深蓝主题下 `QStyle.StandardPixmap` 位图与暗背景融为一体，改回 Unicode 文本（⏮ ▶ ⏭ 🔊, ⛶），受 QSS `color` 控制
+
+### ♻️ 重构 / 优化
+
+- **进度标签节流** — `ControlsBar.update_time()` 改为 100ms 单次定时器，播放时不再每帧重建时间字符串
+- **主题缓存** — `apply_theme()` 首次读文件后缓存 QSS，切主题不再重复 I/O
+- **死代码清理** — 删除 `player/__init__.py`（空文件）、`playlist.get_items()` / `current_file()`、`windows_effects.enable_mica()` / `is_windows_11_or_later()` / `is_windows_10_or_later()`，全仓零引用
+
 ## 0.2.0（2026-06-22）
 
 ### ✨ 新功能

@@ -23,16 +23,35 @@ os.environ["PATH"] = dll_dir + os.pathsep + os.environ.get("PATH", "")
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtCore import Qt
+from PyQt6.QtNetwork import QLocalServer, QLocalSocket
 
 from player.window import MainWindow
 
+_INSTANCE_NAME = "redvideo-single-instance"
+
+
+def _send_to_existing(path: str) -> bool:
+    socket = QLocalSocket()
+    socket.connectToServer(_INSTANCE_NAME)
+    if socket.waitForConnected(500):
+        if path:
+            socket.write(path.encode("utf-8"))
+            socket.flush()
+            socket.waitForBytesWritten(500)
+        socket.disconnectFromServer()
+        return True
+    return False
+
 
 def main():
-    # 提取命令行传入的文件路径（Windows 打开方式传参）
     file_path = None
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     if args:
         file_path = os.path.abspath(args[0])
+
+    # 单实例：若已有实例在运行，把文件路径发过去后退出
+    if file_path and _send_to_existing(file_path):
+        sys.exit(0)
 
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
@@ -42,7 +61,30 @@ def main():
 
     win = MainWindow(file_path=file_path)
     win.show()
+
+    # 启动本地服务器，监听后续打开的 files
+    _server = QLocalServer()
+    _server.removeServer(_INSTANCE_NAME)
+    _server.listen(_INSTANCE_NAME)
+    _server.newConnection.connect(lambda: _on_new_instance(win, _server))
+
     sys.exit(app.exec())
+
+
+def _on_new_instance(win: MainWindow, server: QLocalServer) -> None:
+    socket = server.nextPendingConnection()
+    if not socket:
+        return
+    if socket.waitForReadyRead(500):
+        data = socket.readAll().data().decode("utf-8", errors="replace")
+        if data:
+            win.playlist.add_files([data])
+            if not win.mpv.filename:
+                win._play_file(data)
+            win.show()
+            win.raise_()
+            win.activateWindow()
+    socket.disconnectFromServer()
 
 
 if __name__ == "__main__":

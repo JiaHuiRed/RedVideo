@@ -134,22 +134,4 @@ def enable_acrylic(hwnd: int, dark_tint: bool = True) -> bool:
     return _swca_acrylic(hwnd, dark_tint)
 
 
-def enable_mica(hwnd: int) -> bool:
-    """启用 Mica（Win11 22H2+ 着色模糊）。"""
-    return _dwm_set_backdrop(hwnd, _DWMA_SBT_MAINWINDOW)
 
-
-def is_windows_11_or_later() -> bool:
-    try:
-        ver = sys.getwindowsversion()
-        return ver.build >= 22000
-    except Exception:
-        return False
-
-
-def is_windows_10_or_later() -> bool:
-    try:
-        ver = sys.getwindowsversion()
-        return ver.major >= 10
-    except Exception:
-        return False

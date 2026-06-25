@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QRect, QPoint
 from PyQt6.QtGui import (
     QDragEnterEvent, QDropEvent, QAction, QActionGroup, QMouseEvent, QCursor,
+    QIcon,
 )
 
 from player.mpv_widget import MpvWidget
@@ -29,7 +30,7 @@ def _base() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}
@@ -43,6 +44,9 @@ MEDIA_FILTER = (
 )
 
 
+_theme_cache: dict[str, str] = {}
+
+
 def apply_theme(name: str) -> None:
     """加载主题 QSS 并应用到全局。"""
     path = THEMES_DIR / f"{name}.qss"
@@ -51,8 +55,13 @@ def apply_theme(name: str) -> None:
     app = QApplication.instance()
     if app is None:
         return
+    if name in _theme_cache:
+        app.setStyleSheet(_theme_cache[name])
+        return
     with open(path, encoding="utf-8") as f:
-        app.setStyleSheet(f.read())
+        qss = f.read()
+    _theme_cache[name] = qss
+    app.setStyleSheet(qss)
 
 
 class MainWindow(QMainWindow):
@@ -62,6 +71,11 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._theme = theme
         self._startup_file = file_path
+
+        # ── 窗口图标 ──
+        icon_path = _base() / "resources" / "icon.ico"
+        if icon_path.exists():
+            self.setWindowIcon(QIcon(str(icon_path)))
 
         # ── 无框窗口 ──
         self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -282,6 +296,8 @@ class MainWindow(QMainWindow):
         c = self.controls
         c.play_toggled.connect(self.toggle_play)
         c.seeked.connect(lambda pos: self.mpv.seek(pos))
+        c.prev_clicked.connect(self.prev_file)
+        c.next_clicked.connect(self.next_file)
         c.volume_changed.connect(self.mpv.set_volume)
         c.mute_toggled.connect(self.toggle_mute)
         c.fullscreen_toggled.connect(self.toggle_fullscreen)
@@ -345,6 +361,16 @@ class MainWindow(QMainWindow):
 
     def _on_file_loaded(self, path: str):
         self.titlebar.set_title(f"RedVideo — {Path(path).name}")
+
+    def prev_file(self):
+        path = self.playlist.prev_file()
+        if path:
+            self._play_file(path)
+
+    def next_file(self):
+        path = self.playlist.next_file()
+        if path:
+            self._play_file(path)
 
     def toggle_play(self):
         self.mpv.toggle_play()
