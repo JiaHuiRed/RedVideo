@@ -32,15 +32,17 @@ _INSTANCE_NAME = "redvideo-single-instance"
 
 def _send_to_existing(path: str) -> bool:
     socket = QLocalSocket()
-    socket.connectToServer(_INSTANCE_NAME)
-    if socket.waitForConnected(500):
+    try:
+        socket.connectToServer(_INSTANCE_NAME)
+        if not socket.waitForConnected(500):
+            return False
         if path:
             socket.write(path.encode("utf-8"))
             socket.flush()
             socket.waitForBytesWritten(500)
-        socket.disconnectFromServer()
         return True
-    return False
+    finally:
+        socket.disconnectFromServer()
 
 
 def main():
@@ -75,16 +77,18 @@ def _on_new_instance(win: MainWindow, server: QLocalServer) -> None:
     socket = server.nextPendingConnection()
     if not socket:
         return
-    if socket.waitForReadyRead(500):
-        data = socket.readAll().data().decode("utf-8", errors="replace")
-        if data:
-            win.playlist.add_files([data])
-            if not win.mpv.filename:
-                win._play_file(data)
-            win.show()
-            win.raise_()
-            win.activateWindow()
-    socket.disconnectFromServer()
+    try:
+        if socket.waitForReadyRead(500):
+            data = socket.readAll().data().decode("utf-8", errors="replace")
+            if data:
+                win.playlist.add_files([data])
+                if not win.mpv.filename:
+                    win._play_file(data)
+                win.show()
+                win.raise_()
+                win.activateWindow()
+    finally:
+        socket.disconnectFromServer()
 
 
 if __name__ == "__main__":

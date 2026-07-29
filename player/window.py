@@ -30,7 +30,7 @@ def _base() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-VERSION = "0.3.0"
+VERSION = "0.3.1"
 
 THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}
@@ -86,7 +86,6 @@ class MainWindow(QMainWindow):
 
         self._playlist_visible = True
         self._acrylic_applied = False
-        self._root_layout = None
 
         # 缩放状态
         self._resizing = False
@@ -356,7 +355,8 @@ class MainWindow(QMainWindow):
 
     def _play_file(self, path: str):
         self.mpv.open(path)
-        self._playlist_visible = True
+        if not self.isVisible():
+            self.show()
         self.playlist.setVisible(True)
 
     def _on_file_loaded(self, path: str):

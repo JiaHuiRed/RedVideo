@@ -1,5 +1,20 @@
 # RedVideo 更新日志
 
+## 0.3.1（2026-07-29）
+
+> 稳定性修复：单实例通信异常保护、mpv 下载超时、代码清理。
+
+### 🐛 修复
+
+- **单实例通信 socket 泄漏** — `main.py` 的 `_send_to_existing` 和 `_on_new_instance` 在异常路径下未调用 `disconnectFromServer()`，现在都包上 `try/finally`，确保连接总是被清理
+- **mpv 下载无限等待** — `scripts/setup_mpv.py` 的 `urlopen` 缺少 timeout，GFW/慢网下会卡死整个安装流程，现在加 `timeout=30` 并打印错误后退出
+
+### ♻️ 重构 / 优化
+
+- **清理 `player/playlist.py` 空行噪音** — 删除重复空行和重复注释块，182 行压缩到 110 行，结构更清晰
+- **修复 `_play_file` 状态冲突** — `player/window.py` 的 `_play_file` 不再每次强设 `setVisible(True)`，改从 `isVisible()` 判断，避免和 `toggle_playlist` 的显隐状态冲突
+- **删除冗余初始化** — `main.py` 的 `_root_layout = None` 被 `_build_ui()` 立刻覆盖，属于死代码，直接删除
+
 ## 0.3.0（2026-06-25）
 
 ### ✨ 新功能

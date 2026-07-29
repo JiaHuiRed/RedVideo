@@ -33,8 +33,12 @@ def ensure_7zr() -> None:
     print(">> 下载 7zr.exe...")
     os.makedirs(BIN_DIR, exist_ok=True)
     req = urllib.request.Request(SZ_URL, headers={"User-Agent": "RedVideo"})
-    with urllib.request.urlopen(req) as r:
-        data = r.read()
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            data = r.read()
+    except Exception as e:
+        print(f"!! 下载 7zr.exe 失败：{e}")
+        sys.exit(1)
     with open(SZ_EXE, "wb") as f:
         f.write(data)
     print(f"   已保存到 {SZ_EXE}")
