@@ -19,6 +19,16 @@ def _fmt(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
+_SPEED_STEPS = [0.5, 1.0, 1.5, 2.0]
+
+
+def _snap_speed(speed: float) -> float:
+    for s in _SPEED_STEPS:
+        if abs(speed - s) < 0.05:
+            return s
+    return speed
+
+
 class ControlsBar(QWidget):
     """底部控制栏：播放/暂停 → 进度条 → 时间 → 音量 → 全屏"""
 
@@ -29,6 +39,7 @@ class ControlsBar(QWidget):
     volume_changed = pyqtSignal(int)
     mute_toggled = pyqtSignal()
     fullscreen_toggled = pyqtSignal()
+    speed_changed = pyqtSignal(float)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -37,6 +48,7 @@ class ControlsBar(QWidget):
         self._slider_dragging = False
         self._duration: float = 0.0
         self._pending_time = (0.0, 0.0)
+        self._speed: float = 1.0
         self._ui_timer = QTimer(self)
         self._ui_timer.setSingleShot(True)
         self._ui_timer.timeout.connect(self._flush_time)
@@ -100,6 +112,13 @@ class ControlsBar(QWidget):
         self.vol_slider.valueChanged.connect(lambda v: self.volume_changed.emit(v))
         layout.addWidget(self.vol_slider)
 
+        # ── 倍速 ──
+        self.btn_speed = QPushButton("1.0x")
+        self.btn_speed.setObjectName("BtnSpeed")
+        self.btn_speed.setFixedSize(36, 28)
+        self.btn_speed.clicked.connect(self._cycle_speed)
+        layout.addWidget(self.btn_speed)
+
         # ── 全屏 ──
         self.btn_fs = QPushButton("⛶")
         self.btn_fs.setObjectName("BtnFullscreen")
@@ -119,7 +138,7 @@ class ControlsBar(QWidget):
 
     def _flush_time(self) -> None:
         pos, duration = self._pending_time
-        self.lbl_time.setText(f"{_fmt(pos)} / {_fmt(duration)}")
+        self.lbl_time.setText(f"{_fmt(pos)} / {_fmt(duration)} · {self._speed:.1f}x")
 
     def set_paused(self, paused: bool) -> None:
         self.btn_play.setText("▶" if paused else "⏸")
@@ -129,6 +148,17 @@ class ControlsBar(QWidget):
 
     def set_muted(self, muted: bool) -> None:
         self.btn_mute.setText("🔇" if muted else "🔊")
+
+    def set_speed(self, speed: float) -> None:
+        snapped = _snap_speed(max(0.5, min(2.0, speed)))
+        self._speed = snapped
+        self.btn_speed.setText(f"{snapped:.1f}x")
+        self.speed_changed.emit(snapped)
+
+    def _cycle_speed(self):
+        idx = _SPEED_STEPS.index(self._speed) if self._speed in _SPEED_STEPS else 1
+        nxt = _SPEED_STEPS[(idx + 1) % len(_SPEED_STEPS)]
+        self.set_speed(nxt)
 
     # ── 内部 ──
 

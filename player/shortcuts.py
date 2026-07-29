@@ -19,6 +19,8 @@ class Shortcuts:
         ("F11",             "toggle_fullscreen"),
         ("F",               "toggle_fullscreen"),
         ("M",               "toggle_mute"),
+        ("[",               "speed_down"),
+        ("]",               "speed_up"),
         ("Ctrl+O",          "open_file"),
         ("Delete",          "remove_playlist_item"),
         ("Ctrl+I",          "toggle_playlist"),

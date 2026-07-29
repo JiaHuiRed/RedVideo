@@ -19,6 +19,7 @@ from player.playlist import PlaylistPanel
 from player.shortcuts import Shortcuts
 from player.titlebar import Titlebar, TITLEBAR_HEIGHT
 from player.windows_effects import enable_acrylic
+from player.state import load as load_state, save as save_state
 
 RESIZE_MARGIN = 6
 
@@ -29,7 +30,7 @@ def _base() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-VERSION = "0.3.1"
+VERSION = "0.3.2"
 
 THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}
@@ -97,16 +98,34 @@ class MainWindow(QMainWindow):
 
         apply_theme(self._theme)
 
+        # 恢复播放记忆
+        state = load_state()
+        if state.get("geometry"):
+            self.restoreGeometry(bytes.fromhex(state["geometry"]))
+        if state.get("volume") is not None:
+            self.mpv.set_volume(state["volume"])
+            self.controls.set_volume(state["volume"])
+        if state.get("speed") is not None:
+            self.mpv.set_speed(state["speed"])
+            self.controls.set_speed(state["speed"])
+        if state.get("theme") and state["theme"] != self._theme:
+            self.switch_theme(state["theme"])
+
         self._build_titlebar()
         self._build_ui()
         self._connect_signals()
 
         Shortcuts(self)
 
-        # 从命令行传入的视频路径（Windows 打开方式）
+        # 打开即播上次
+        if self._startup_file is None and state.get("last_file"):
+            self._startup_file = state["last_file"]
         if self._startup_file:
             self.playlist.add_files([self._startup_file])
             self._play_file(self._startup_file)
+            if state.get("last_position"):
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(200, lambda: self.mpv.seek(state["last_position"]))
 
     # ── 缩放 ──
 
@@ -398,6 +417,14 @@ class MainWindow(QMainWindow):
         self.mpv.toggle_mute()
         self.controls.set_muted(self.mpv.is_muted)
 
+    def speed_up(self):
+        self.mpv.speed_up()
+        self.controls.set_speed(self.mpv.speed)
+
+    def speed_down(self):
+        self.mpv.speed_down()
+        self.controls.set_speed(self.mpv.speed)
+
     def toggle_fullscreen(self):
         if self.isFullScreen():
             self.showNormal()
@@ -439,5 +466,16 @@ class MainWindow(QMainWindow):
     # ── 关闭 ──
 
     def closeEvent(self, event):
+        # 保存播放记忆
+        geo = self.saveGeometry().data().hex()
+        pos = self.mpv.time_pos if self.mpv.filename else None
+        save_state({
+            "geometry": geo,
+            "volume": self.mpv.volume,
+            "speed": self.mpv.speed,
+            "theme": self._theme,
+            "last_file": self.mpv.filename,
+            "last_position": pos,
+        })
         self.mpv.cleanup()
         super().closeEvent(event)

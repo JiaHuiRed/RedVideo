@@ -83,6 +83,15 @@ class MpvWidget(QWidget):
     def toggle_mute(self) -> None:
         self._mpv.mute = not self._mpv.mute
 
+    def set_speed(self, speed: float) -> None:
+        self._mpv.speed = max(0.1, speed)
+
+    def speed_up(self, step: float = 0.1) -> None:
+        self.set_speed((self._mpv.speed or 1.0) + step)
+
+    def speed_down(self, step: float = 0.1) -> None:
+        self.set_speed((self._mpv.speed or 1.0) - step)
+
     # ── 属性 ──
 
     @property
@@ -104,6 +113,10 @@ class MpvWidget(QWidget):
     @property
     def is_muted(self) -> bool:
         return bool(self._mpv.mute)
+
+    @property
+    def speed(self) -> float:
+        return float(self._mpv.speed or 1.0)
 
     @property
     def filename(self) -> str | None:
