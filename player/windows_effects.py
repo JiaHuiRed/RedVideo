@@ -9,7 +9,6 @@
 
 import ctypes
 from ctypes import wintypes
-import sys
 
 # ── DWM API (Windows 11 22H2+) ──
 
