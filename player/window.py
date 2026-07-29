@@ -98,6 +98,12 @@ class MainWindow(QMainWindow):
 
         apply_theme(self._theme)
 
+        self._build_titlebar()
+        self._build_ui()
+        self._connect_signals()
+
+        Shortcuts(self)
+
         # 恢复播放记忆
         state = load_state()
         if state.get("geometry"):
@@ -110,12 +116,6 @@ class MainWindow(QMainWindow):
             self.controls.set_speed(state["speed"])
         if state.get("theme") and state["theme"] != self._theme:
             self.switch_theme(state["theme"])
-
-        self._build_titlebar()
-        self._build_ui()
-        self._connect_signals()
-
-        Shortcuts(self)
 
         # 打开即播上次
         if self._startup_file is None and state.get("last_file"):
