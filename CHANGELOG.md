@@ -14,6 +14,8 @@
 - **清理 `player/playlist.py` 空行噪音** — 删除重复空行和重复注释块，182 行压缩到 110 行，结构更清晰
 - **修复 `_play_file` 状态冲突** — `player/window.py` 的 `_play_file` 不再每次强设 `setVisible(True)`，改从 `isVisible()` 判断，避免和 `toggle_playlist` 的显隐状态冲突
 - **删除冗余初始化** — `main.py` 的 `_root_layout = None` 被 `_build_ui()` 立刻覆盖，属于死代码，直接删除
+- **删除未使用的导入** — `scripts/gen_icon.py` 的 `ImageFilter` 和 `ImageFont` 从未使用，清理冗余导入
+- **删除未使用的 QStyle 导入** — `player/window.py` 中导入 `QStyle` 但从未使用，删除冗余导入
 
 ## 0.3.0（2026-06-25）
 

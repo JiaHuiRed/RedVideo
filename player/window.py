@@ -6,7 +6,6 @@ from pathlib import Path
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
     QFileDialog, QSplitter, QMenu, QToolButton, QApplication,
-    QStyle,
 )
 from PyQt6.QtCore import Qt, QRect, QPoint
 from PyQt6.QtGui import (

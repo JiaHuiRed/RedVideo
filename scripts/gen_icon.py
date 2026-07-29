@@ -1,5 +1,5 @@
 """生成 RedVideo 应用图标（ICO，含多尺寸）。"""
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw
 import os, struct, io
 
 SIZES = [16, 24, 32, 48, 64, 128, 256]
