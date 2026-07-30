@@ -1,4 +1,4 @@
-"""播放控制栏 — 进度条/时间/音量/全屏"""
+"""播放控制栏 — 进度条/时间/音量/全屏/倍速/置顶"""
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QSlider, QLabel,
@@ -19,18 +19,8 @@ def _fmt(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
-_SPEED_STEPS = [0.5, 1.0, 1.5, 2.0]
-
-
-def _snap_speed(speed: float) -> float:
-    for s in _SPEED_STEPS:
-        if abs(speed - s) < 0.05:
-            return s
-    return speed
-
-
 class ControlsBar(QWidget):
-    """底部控制栏：播放/暂停 → 进度条 → 时间 → 音量 → 全屏"""
+    """底部控制栏：播放/暂停 → 进度条 → 时间 → 音量 → 倍速 → 置顶 → 全屏"""
 
     play_toggled = pyqtSignal()
     seeked = pyqtSignal(float)
@@ -40,6 +30,7 @@ class ControlsBar(QWidget):
     mute_toggled = pyqtSignal()
     fullscreen_toggled = pyqtSignal()
     speed_changed = pyqtSignal(float)
+    always_on_top_toggled = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -49,6 +40,7 @@ class ControlsBar(QWidget):
         self._duration: float = 0.0
         self._pending_time = (0.0, 0.0)
         self._speed: float = 1.0
+        self._preview_mode = False
         self._ui_timer = QTimer(self)
         self._ui_timer.setSingleShot(True)
         self._ui_timer.timeout.connect(self._flush_time)
@@ -88,6 +80,7 @@ class ControlsBar(QWidget):
         self.slider.setValue(0)
         self.slider.sliderPressed.connect(lambda: setattr(self, "_slider_dragging", True))
         self.slider.sliderReleased.connect(self._on_slider_released)
+        self.slider.valueChanged.connect(self._on_slider_moved)
         layout.addWidget(self.slider, 1)
 
         # ── 时间标签 ──
@@ -119,6 +112,14 @@ class ControlsBar(QWidget):
         self.btn_speed.clicked.connect(self._cycle_speed)
         layout.addWidget(self.btn_speed)
 
+        # ── 置顶 ──
+        self.btn_pin = QPushButton("📌")
+        self.btn_pin.setObjectName("BtnPin")
+        self.btn_pin.setFixedSize(28, 28)
+        self.btn_pin.setCheckable(True)
+        self.btn_pin.clicked.connect(self.always_on_top_toggled.emit)
+        layout.addWidget(self.btn_pin)
+
         # ── 全屏 ──
         self.btn_fs = QPushButton("⛶")
         self.btn_fs.setObjectName("BtnFullscreen")
@@ -133,8 +134,9 @@ class ControlsBar(QWidget):
         if not self._slider_dragging and duration > 0:
             ratio = min(1.0, pos / duration) if duration else 0
             self.slider.setValue(int(ratio * 10000))
-        self._pending_time = (pos, duration)
-        self._ui_timer.start(100)
+        if not self._preview_mode:
+            self._pending_time = (pos, duration)
+            self._ui_timer.start(100)
 
     def _flush_time(self) -> None:
         pos, duration = self._pending_time
@@ -150,19 +152,30 @@ class ControlsBar(QWidget):
         self.btn_mute.setText("🔇" if muted else "🔊")
 
     def set_speed(self, speed: float) -> None:
-        snapped = _snap_speed(max(0.5, min(2.0, speed)))
-        self._speed = snapped
-        self.btn_speed.setText(f"{snapped:.1f}x")
-        self.speed_changed.emit(snapped)
+        self._speed = max(0.5, min(2.0, speed))
+        self.btn_speed.setText(f"{self._speed:.1f}x")
+        self.speed_changed.emit(self._speed)
+
+    def set_always_on_top(self, checked: bool) -> None:
+        self.btn_pin.setChecked(checked)
 
     def _cycle_speed(self):
-        idx = _SPEED_STEPS.index(self._speed) if self._speed in _SPEED_STEPS else 1
-        nxt = _SPEED_STEPS[(idx + 1) % len(_SPEED_STEPS)]
+        nxt = round(self._speed + 0.1, 1)
+        if nxt > 2.0:
+            nxt = 0.5
         self.set_speed(nxt)
 
     # ── 内部 ──
 
+    def _on_slider_moved(self, value: int) -> None:
+        if not self._slider_dragging or not self._duration:
+            return
+        self._preview_mode = True
+        preview = (value / 10000.0) * self._duration
+        self.lbl_time.setText(f"{_fmt(preview)} / {_fmt(self._duration)} · {self._speed:.1f}x")
+
     def _on_slider_released(self):
         self._slider_dragging = False
+        self._preview_mode = False
         ratio = self.slider.value() / 10000.0
         self.seeked.emit(ratio * self._duration)
