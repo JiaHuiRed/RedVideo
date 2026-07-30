@@ -86,6 +86,7 @@ class MainWindow(QMainWindow):
 
         self._playlist_visible = True
         self._acrylic_applied = False
+        self._last_dir = ""
 
         # 缩放状态
         self._resizing = False
@@ -116,16 +117,20 @@ class MainWindow(QMainWindow):
             self.controls.set_speed(state["speed"])
         if state.get("theme") and state["theme"] != self._theme:
             self.switch_theme(state["theme"])
-
         # 打开即播上次
         if self._startup_file is None and state.get("last_file"):
             self._startup_file = state["last_file"]
         if self._startup_file:
-            self.playlist.add_files([self._startup_file])
+            if state.get("playlist_files"):
+                self.playlist.add_files(state["playlist_files"])
+            else:
+                self.playlist.add_files([self._startup_file])
             self._play_file(self._startup_file)
             if state.get("last_position"):
                 from PyQt6.QtCore import QTimer
                 QTimer.singleShot(200, lambda: self.mpv.seek(state["last_position"]))
+            if state.get("playlist_index") is not None:
+                self.playlist.set_current_index(state["playlist_index"])
 
     # ── 缩放 ──
 
@@ -318,6 +323,7 @@ class MainWindow(QMainWindow):
         c.volume_changed.connect(self.mpv.set_volume)
         c.mute_toggled.connect(self.toggle_mute)
         c.fullscreen_toggled.connect(self.toggle_fullscreen)
+        c.always_on_top_toggled.connect(self.toggle_always_on_top)
 
         m = self.mpv
         m.file_loaded.connect(self._on_file_loaded)
@@ -354,18 +360,22 @@ class MainWindow(QMainWindow):
 
     def open_file(self):
         opts = QFileDialog.Option.DontUseNativeDialog
+        start = self._last_dir or ""
         paths, _ = QFileDialog.getOpenFileNames(
-            self, "打开媒体文件", "", MEDIA_FILTER, options=opts,
+            self, "打开媒体文件", start, MEDIA_FILTER, options=opts,
         )
         if paths:
+            self._last_dir = str(Path(paths[0]).parent)
             self.playlist.add_files(paths)
             self._play_file(paths[0])
 
     def _open_directory(self):
         opts = QFileDialog.Option.DontUseNativeDialog
-        d = QFileDialog.getExistingDirectory(self, "选择文件夹", options=opts)
+        start = self._last_dir or ""
+        d = QFileDialog.getExistingDirectory(self, "选择文件夹", start, options=opts)
         if not d:
             return
+        self._last_dir = d
         files = sorted([str(p) for p in Path(d).iterdir() if p.suffix.lower() in MEDIA_EXTS])
         if files:
             self.playlist.add_files(files)
@@ -441,6 +451,14 @@ class MainWindow(QMainWindow):
         self._playlist_visible = not self._playlist_visible
         self.playlist.setVisible(self._playlist_visible)
 
+    def toggle_always_on_top(self, checked: bool) -> None:
+        flags = self.windowFlags()
+        if checked:
+            self.setWindowFlags(flags | Qt.WindowType.WindowStaysOnTopHint)
+        else:
+            self.setWindowFlags(flags & ~Qt.WindowType.WindowStaysOnTopHint)
+        self.show()
+
     def remove_playlist_item(self):
         self.playlist.remove_selected()
 
@@ -476,6 +494,11 @@ class MainWindow(QMainWindow):
             "theme": self._theme,
             "last_file": self.mpv.filename,
             "last_position": pos,
+            "playlist_files": [self.playlist.list.item(i).data(Qt.ItemDataRole.UserRole)
+                               for i in range(self.playlist.list.count())
+                               if self.playlist.list.item(i)],
+            "playlist_index": self.playlist.current_index(),
+            "last_dir": self._last_dir,
         })
         self.mpv.cleanup()
         super().closeEvent(event)
