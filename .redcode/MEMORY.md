@@ -5,13 +5,14 @@
 ## 项目概况
 
 - 技术栈：Python + PyQt6 + MPV 播放器
-- 结构：`main.py` 入口 + `player/` 包（window/widget/controls/playlist/shortcuts/titlebar/windows_effects）+ `scripts/`
-- 代码规模：10 个文件，136 个符号，0 死代码，0 依赖环
+- 结构：`main.py` 入口 + `player/` 包（window/widget/controls/playlist/shortcuts/titlebar/windows_effects/state）+ `scripts/`
+- 代码规模：11 个文件（新增 `player/state.py`），0 死代码，0 依赖环
 
 ## 当前进度（2026-07-29）
 
 - 版本：0.3.2
 - 已完成 7 项优化（commit `956d60d` + `6a038f3`）
+- 2026-07-30 已从远端拉取并更新到 `2508f9b`，同步更新项目记忆
 - 全仓 0 死代码，0 未使用导入，代码质量健康
 
 ## 已知优化点（已完成）
@@ -27,9 +28,11 @@
 ## 关键路径
 
 - 主窗口：`player/window.py`
+- 播放状态持久化：`player/state.py`（新增于 2508f9b）
 - 播放控件：`player/controls.py`
 - 播放列表：`player/playlist.py`
-- MPV 安装脚本：`scripts/setup_mpv.py`
+- 单实例入口：`main.py`
+- 资源主题：`resources/themes/*.qss`
 
 ## jcodemunch 索引
 
