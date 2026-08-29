@@ -42,10 +42,11 @@ def _dwm_set_backdrop(hwnd: int, backdrop_type: int) -> bool:
         if not _init_dwm():
             return False
     try:
-        _DwmSetWindowAttribute(hwnd, _DWMA_SYSTEMBACKDROP_TYPE,
-                                ctypes.byref(ctypes.c_int(backdrop_type)),
-                                ctypes.sizeof(ctypes.c_int))
-        return True
+        hr = _DwmSetWindowAttribute(hwnd, _DWMA_SYSTEMBACKDROP_TYPE,
+                                    ctypes.byref(ctypes.c_int(backdrop_type)),
+                                    ctypes.sizeof(ctypes.c_int))
+        # DwmSetWindowAttribute 用返回值报告失败（如 Win10 不支持该属性），不会抛异常
+        return hr == 0
     except Exception:
         return False
 
@@ -96,9 +97,8 @@ def _swca_acrylic(hwnd: int, dark_tint: bool = True) -> bool:
     if not _SetWindowCompositionAttribute:
         if not _init_swca():
             return False
-    # GradientColor = 0x00BBGGRR (前两位 alpha, BE 排列)
-    # 深色遮罩: alpha=0x99, 黑底
-    tint = 0x00440000 if dark_tint else 0x00993300  # 暗色或亮色
+    # GradientColor 为 0xAABBGGRR：深色遮罩 alpha=0x99 黑底，浅色为白底
+    tint = 0x99000000 if dark_tint else 0x99FFFFFF
     accent = _ACCENT_POLICY(
         AccentState=_ACCENT_ENABLE_ACRYLICBLUR,
         AccentFlags=0x20 | 0x40,  # 允许绘制 + 模糊后绘制

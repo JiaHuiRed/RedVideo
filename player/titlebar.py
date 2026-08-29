@@ -22,6 +22,7 @@ class TrafficButton(QPushButton):
         self._color = color
         self.setFixedSize(TRAFFIC_SIZE, TRAFFIC_SIZE)
         self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.setObjectName("TrafficButton")
 
     def paintEvent(self, event):

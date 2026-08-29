@@ -67,10 +67,10 @@ def apply_theme(name: str) -> None:
 class MainWindow(QMainWindow):
     """RedVideo 主窗口 — 无框窗口 + macOS 风格标题栏 + 毛玻璃 + 四边缩放。"""
 
-    def __init__(self, theme: str = "night", file_path: str | None = None):
+    def __init__(self, theme: str = "night", file_paths: list[str] | None = None):
         super().__init__()
         self._theme = theme
-        self._startup_file = file_path
+        self._startup_files = file_paths
 
         # ── 窗口图标 ──
         icon_path = _base() / "resources" / "icon.ico"
@@ -119,19 +119,30 @@ class MainWindow(QMainWindow):
         if state.get("theme") and state["theme"] != self._theme:
             self.switch_theme(state["theme"])
         # 打开即播上次
-        if self._startup_file is None and state.get("last_file"):
-            self._startup_file = state["last_file"]
-        if self._startup_file:
+        if self._startup_files is None and state.get("last_file"):
+            self._startup_files = [state["last_file"]]
+        if self._startup_files:
             if state.get("playlist_files"):
                 self.playlist.add_files(state["playlist_files"])
             else:
-                self.playlist.add_files([self._startup_file])
-            self._play_file(self._startup_file)
+                self.playlist.add_files(self._startup_files)
+            self._play_file(self._startup_files[0])
             if state.get("last_position"):
-                from PyQt6.QtCore import QTimer
-                QTimer.singleShot(200, lambda: self.mpv.seek(state["last_position"]))
+                self._restore_position(state["last_position"])
             if state.get("playlist_index") is not None:
                 self.playlist.set_current_index(state["playlist_index"])
+
+    def _restore_position(self, pos: float) -> None:
+        """file_loaded 后一次性恢复断点（固定延时对慢盘/网络文件不可靠）。"""
+
+        def _seek(_path: str) -> None:
+            self.mpv.seek(pos)
+            try:
+                self.mpv.file_loaded.disconnect(_seek)
+            except TypeError:
+                pass
+
+        self.mpv.file_loaded.connect(_seek)
 
     # ── 缩放 ──
 
@@ -231,6 +242,7 @@ class MainWindow(QMainWindow):
         menu_btn.setArrowType(Qt.ArrowType.DownArrow)
         menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         menu_btn.setCursor(Qt.CursorShape.ArrowCursor)
+        menu_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         menu = QMenu(menu_btn)
 
@@ -342,7 +354,7 @@ class MainWindow(QMainWindow):
     def showEvent(self, event):
         super().showEvent(event)
         if not self._acrylic_applied:
-            enable_acrylic(int(self.winId()))
+            enable_acrylic(int(self.winId()), dark_tint=self._theme != "day")
             self._acrylic_applied = True
 
     def _toggle_maximize(self):
@@ -382,6 +394,15 @@ class MainWindow(QMainWindow):
         if files:
             self.playlist.add_files(files)
             self._play_file(files[0])
+
+    def open_paths(self, paths: list[str]) -> None:
+        """单实例/多文件入口：追加到播放列表，空闲则开播第一个。"""
+        self.playlist.add_files(paths)
+        if not self.mpv.filename:
+            self._play_file(paths[0])
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     def _play_file(self, path: str):
         self.playlist.mark_playing(path)

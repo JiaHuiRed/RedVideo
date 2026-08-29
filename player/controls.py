@@ -152,6 +152,11 @@ class ControlsBar(QWidget):
         self.btn_fs.clicked.connect(self.fullscreen_toggled)
         layout.addWidget(self.btn_fs)
 
+        # 按钮不抢焦点：避免点过按钮后空格同时触发快捷键和按钮（双触发）
+        for btn in (self.btn_prev, self.btn_play, self.btn_next, self.btn_mute,
+                    self.btn_speed, self.btn_pin, self.btn_fs):
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
     # ── API ──
 
     def update_time(self, pos: float, duration: float) -> None:
