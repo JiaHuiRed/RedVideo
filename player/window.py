@@ -87,6 +87,7 @@ class MainWindow(QMainWindow):
         self._playlist_visible = True
         self._acrylic_applied = False
         self._last_dir = ""
+        self._duration = 0.0  # duration_changed 时缓存，position tick 不必跨线程读 mpv
 
         # 缩放状态
         self._resizing = False
@@ -342,8 +343,8 @@ class MainWindow(QMainWindow):
         m = self.mpv
         m.file_loaded.connect(self._on_file_loaded)
         m.paused_changed.connect(c.set_paused)
-        m.position_changed.connect(lambda pos: c.update_time(pos, m.duration))
-        m.duration_changed.connect(lambda dur: c.update_time(m.time_pos, dur))
+        m.position_changed.connect(lambda pos: c.update_time(pos, self._duration))
+        m.duration_changed.connect(self._on_duration_changed)
         m.finished.connect(self._on_playback_finished)
 
         p = self.playlist
@@ -412,6 +413,10 @@ class MainWindow(QMainWindow):
 
     def _on_file_loaded(self, path: str):
         self.titlebar.set_title(f"RedVideo — {Path(path).name}")
+
+    def _on_duration_changed(self, dur: float):
+        self._duration = dur
+        self.controls.update_time(self.mpv.time_pos, dur)
 
     def prev_file(self):
         path = self.playlist.prev_file()

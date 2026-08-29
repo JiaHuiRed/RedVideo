@@ -161,16 +161,19 @@ class ControlsBar(QWidget):
 
     def update_time(self, pos: float, duration: float) -> None:
         self._duration = duration
-        if not self._slider_dragging and duration > 0:
-            ratio = min(1.0, pos / duration) if duration else 0
-            self.slider.setValue(int(ratio * 10000))
-        if not self._preview_mode:
-            self._pending_time = (pos, duration)
+        if self._preview_mode:
+            return
+        self._pending_time = (pos, duration)
+        # 单次定时器活跃时不重置：高频率 tick 不会把节流饿死，且最多 100ms 刷一次
+        if not self._ui_timer.isActive():
             self._ui_timer.start(100)
 
     def _flush_time(self) -> None:
         pos, duration = self._pending_time
         self.lbl_time.setText(f"{_fmt(pos)} / {_fmt(duration)} · {self._speed:.1f}x")
+        # 进度条也并入 100ms 节流，避免短视频下每帧重绘
+        if duration > 0 and not self._slider_dragging:
+            self.slider.setValue(int(min(1.0, pos / duration) * 10000))
 
     def set_paused(self, paused: bool) -> None:
         self.btn_play.setText("▶" if paused else "⏸")

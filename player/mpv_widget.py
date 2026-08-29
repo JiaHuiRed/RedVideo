@@ -42,9 +42,8 @@ class MpvWidget(QWidget):
             input_default_bindings=False,
             input_vo_keyboard=True,
             vo="gpu",
-            hwdec="auto",
+            hwdec="auto-safe",  # 只用稳定的硬解模式，避开兼容性差的 copy 路径
             cache=True,
-            demuxer_max_bytes=150 * 1024 * 1024,
         )
 
         self._mpv.observe_property("time-pos", lambda _n, v: v is not None and self.position_changed.emit(float(v)))

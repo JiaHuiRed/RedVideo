@@ -59,12 +59,19 @@ class PlaylistPanel(QWidget):
     # ── API ──
 
     def add_files(self, paths: list[str]) -> None:
-        for p in paths:
-            name = Path(p).name
-            item = QListWidgetItem(name)
-            item.setData(Qt.ItemDataRole.UserRole, p)
-            item.setToolTip(p)
-            self.list.addItem(item)
+        if not paths:
+            return
+        # 大文件夹批量添加时暂停重绘
+        self.list.setUpdatesEnabled(False)
+        try:
+            for p in paths:
+                name = Path(p).name
+                item = QListWidgetItem(name)
+                item.setData(Qt.ItemDataRole.UserRole, p)
+                item.setToolTip(p)
+                self.list.addItem(item)
+        finally:
+            self.list.setUpdatesEnabled(True)
 
     def mark_playing(self, path: str) -> None:
         """标记正在播放的文件：选中高亮该行并作为上/下一曲的基准。"""
