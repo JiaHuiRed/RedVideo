@@ -1,6 +1,7 @@
 """RedVideo 主窗口 — 无框 + 缩放 + 毛玻璃 + 主题切换"""
 
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
@@ -15,7 +16,7 @@ from PyQt6.QtGui import (
 
 from player.mpv_widget import MpvWidget
 from player.controls import ControlsBar
-from player.playlist import PlaylistPanel
+from player.playlist import PlaylistPanel, SUB_EXTS
 from player.shortcuts import Shortcuts
 from player.titlebar import Titlebar, TITLEBAR_HEIGHT
 from player.windows_effects import enable_acrylic
@@ -42,6 +43,8 @@ MEDIA_FILTER = (
     "媒体文件 (*.mp4 *.mkv *.avi *.mov *.wmv *.flv *.webm"
     " *.mp3 *.flac *.wav *.m4a *.aac *.ogg *.opus);;所有文件 (*)"
 )
+SUB_FILTER = "字幕文件 (*.srt *.ass *.ssa *.vtt *.sub);;所有文件 (*)"
+LOOP_MODES = {"off": "播完停止", "one": "单曲循环", "all": "列表循环"}
 
 
 _theme_cache: dict[str, str] = {}
@@ -88,6 +91,7 @@ class MainWindow(QMainWindow):
         self._acrylic_applied = False
         self._last_dir = ""
         self._duration = 0.0  # duration_changed 时缓存，position tick 不必跨线程读 mpv
+        self._loop_mode = "off"
 
         # 缩放状态
         self._resizing = False
@@ -124,6 +128,10 @@ class MainWindow(QMainWindow):
             self.controls.set_speed(state["speed"])
         if state.get("theme") and state["theme"] != self._theme:
             self.switch_theme(state["theme"])
+        if state.get("loop_mode") in LOOP_MODES:
+            self._loop_mode = state["loop_mode"]
+            for name, act in self._loop_actions.items():
+                act.setChecked(name == self._loop_mode)
         # 打开即播上次
         if self._startup_files is None and state.get("last_file"):
             self._startup_files = [state["last_file"]]
@@ -262,6 +270,14 @@ class MainWindow(QMainWindow):
         act_open_dir.triggered.connect(self._open_directory)
         menu.addAction(act_open_dir)
 
+        act_sub = QAction("加载字幕...", self)
+        act_sub.triggered.connect(self.load_subtitle_dialog)
+        menu.addAction(act_sub)
+
+        act_shot = QAction("截图", self)
+        act_shot.triggered.connect(self.screenshot)
+        menu.addAction(act_shot)
+
         menu.addSeparator()
 
         # 播放列表开关
@@ -271,6 +287,22 @@ class MainWindow(QMainWindow):
         act_toggle_pl.setChecked(True)
         act_toggle_pl.triggered.connect(self.toggle_playlist)
         menu.addAction(act_toggle_pl)
+
+        menu.addSeparator()
+
+        # 循环模式
+        loop_menu = menu.addMenu("循环模式")
+        loop_group = QActionGroup(self)
+        loop_group.setExclusive(True)
+        self._loop_actions: dict[str, QAction] = {}
+        for name, label in LOOP_MODES.items():
+            act = QAction(label, self)
+            act.setCheckable(True)
+            act.setChecked(name == self._loop_mode)
+            act.triggered.connect(lambda checked, m=name: self.set_loop_mode(m))
+            loop_group.addAction(act)
+            loop_menu.addAction(act)
+            self._loop_actions[name] = act
 
         menu.addSeparator()
 
@@ -357,6 +389,7 @@ class MainWindow(QMainWindow):
 
         p = self.playlist
         p.item_activated.connect(self._play_file)
+        p.subtitle_files_dropped.connect(self._load_subtitles)
 
     # ── 窗口状态 ──
 
@@ -437,10 +470,53 @@ class MainWindow(QMainWindow):
             self._play_file(path)
 
     def _on_playback_finished(self):
-        # 播完自动连播下一曲；到列表末尾则停在末帧
-        path = self.playlist.next_file()
+        if self._loop_mode == "one":
+            self.mpv.replay()
+            return
+        # 播完自动连播下一曲；off 到列表末尾停在末帧，all 循环整个列表
+        path = self.playlist.next_file(wrap=(self._loop_mode == "all"))
         if path:
             self._play_file(path)
+
+    def set_loop_mode(self, mode: str) -> None:
+        if mode not in LOOP_MODES:
+            return
+        self._loop_mode = mode
+        for name, act in self._loop_actions.items():
+            act.setChecked(name == mode)
+        self._osd(LOOP_MODES[mode])
+
+    def cycle_loop_mode(self) -> None:
+        order = list(LOOP_MODES)
+        nxt = order[(order.index(self._loop_mode) + 1) % len(order)]
+        self.set_loop_mode(nxt)
+
+    # ── 字幕 / 截图 ──
+
+    def load_subtitle_dialog(self):
+        if not self.mpv.filename:
+            return
+        opts = QFileDialog.Option.DontUseNativeDialog
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, "加载字幕", self._last_dir or "", SUB_FILTER, options=opts,
+        )
+        if paths:
+            self._load_subtitles(paths)
+
+    def _load_subtitles(self, paths: list[str]) -> None:
+        if not self.mpv.filename:
+            return
+        ok = sum(1 for p in paths if self.mpv.load_subtitle(p))
+        if ok:
+            self._osd("字幕已加载" if ok == 1 else f"已加载 {ok} 条字幕")
+
+    def screenshot(self) -> None:
+        src = self.mpv.filename
+        if not src:
+            return
+        dest = Path(src).with_name(f"{Path(src).stem} {datetime.now():%H%M%S}.png")
+        if self.mpv.screenshot(str(dest)):
+            self._osd("已保存截图")
 
     def toggle_play(self):
         self.mpv.toggle_play()
@@ -582,6 +658,7 @@ class MainWindow(QMainWindow):
                                if self.playlist.list.item(i)],
             "playlist_index": self.playlist.current_index(),
             "last_dir": self._last_dir,
+            "loop_mode": self._loop_mode,
         })
         self.mpv.cleanup()
         super().closeEvent(event)

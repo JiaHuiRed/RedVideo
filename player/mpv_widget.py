@@ -42,6 +42,7 @@ class MpvWidget(QWidget):
             keep_open=True,
             idle=True,
             osc=False,
+            sub_auto="fuzzy",  # 自动加载同名/近似命名的外挂字幕
             input_default_bindings=False,
             input_vo_keyboard=True,
             vo="gpu",
@@ -106,6 +107,27 @@ class MpvWidget(QWidget):
 
     def seek_rel(self, offset: float) -> None:
         self._mpv.time_pos = (self._mpv.time_pos or 0) + offset
+
+    def replay(self) -> None:
+        """EOF（keep_open 停在末帧）后从头重播。"""
+        self._mpv.time_pos = 0
+        self._mpv.pause = False
+
+    def load_subtitle(self, path: str) -> bool:
+        """加载外挂字幕并立即启用。"""
+        try:
+            self._mpv.sub_add(path)
+            return True
+        except Exception:
+            return False
+
+    def screenshot(self, path: str) -> bool:
+        """截图到文件（含字幕画面）。"""
+        try:
+            self._mpv.screenshot_to_file(path)
+            return True
+        except Exception:
+            return False
 
     def set_volume(self, vol: int) -> None:
         self._mpv.volume = max(0, min(100, vol))

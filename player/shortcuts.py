@@ -21,6 +21,8 @@ class Shortcuts:
         ("M",               "toggle_mute"),
         ("[",               "speed_down"),
         ("]",               "speed_up"),
+        ("L",               "cycle_loop_mode"),
+        ("S",               "screenshot"),
         ("Ctrl+O",          "open_file"),
         ("Delete",          "remove_playlist_item"),
         ("Ctrl+I",          "toggle_playlist"),

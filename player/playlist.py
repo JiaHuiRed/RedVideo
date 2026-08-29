@@ -11,11 +11,14 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
+SUB_EXTS = {".srt", ".ass", ".ssa", ".vtt", ".sub"}
+
 
 class PlaylistPanel(QWidget):
     """可拖拽添加文件的播放列表。"""
 
     item_activated = pyqtSignal(str)   # 双击播放某文件
+    subtitle_files_dropped = pyqtSignal(list)  # 拖入字幕文件
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -91,9 +94,13 @@ class PlaylistPanel(QWidget):
             return self._path_at(self._playing_row - 1)
         return None
 
-    def next_file(self) -> str | None:
-        if 0 <= self._playing_row < self.list.count() - 1:
-            return self._path_at(self._playing_row + 1)
+    def next_file(self, wrap: bool = False) -> str | None:
+        row = self._playing_row
+        count = self.list.count()
+        if 0 <= row < count - 1:
+            return self._path_at(row + 1)
+        if wrap and 0 <= row < count:
+            return self._path_at((row + 1) % count)
         return None
 
     def remove_selected(self) -> None:
@@ -117,8 +124,12 @@ class PlaylistPanel(QWidget):
 
     def dropEvent(self, event: QDropEvent) -> None:
         urls = [u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile()]
-        if urls:
-            self.add_files(urls)
+        subs = [u for u in urls if Path(u).suffix.lower() in SUB_EXTS]
+        media = [u for u in urls if u not in subs]
+        if subs:
+            self.subtitle_files_dropped.emit(subs)
+        if media:
+            self.add_files(media)
 
     # ── 内部 ──
 
