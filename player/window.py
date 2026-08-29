@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
     QFileDialog, QSplitter, QMenu, QToolButton, QApplication,
 )
-from PyQt6.QtCore import Qt, QRect, QPoint
+from PyQt6.QtCore import Qt, QRect, QPoint, QTimer
 from PyQt6.QtGui import (
     QDragEnterEvent, QDropEvent, QAction, QActionGroup, QMouseEvent, QCursor,
     QIcon,
@@ -97,6 +97,11 @@ class MainWindow(QMainWindow):
 
         # 双击标题栏最大化
         self._maximized_before_full = self.isMaximized()
+
+        # 单击画面延迟判定：双击全屏时取消单击的暂停/恢复
+        self._click_timer = QTimer(self)
+        self._click_timer.setSingleShot(True)
+        self._click_timer.timeout.connect(self.toggle_play)
 
         apply_theme(self._theme)
 
@@ -346,6 +351,9 @@ class MainWindow(QMainWindow):
         m.position_changed.connect(lambda pos: c.update_time(pos, self._duration))
         m.duration_changed.connect(self._on_duration_changed)
         m.finished.connect(self._on_playback_finished)
+        m.video_clicked.connect(self._on_video_clicked)
+        m.video_double_clicked.connect(self._on_video_double_clicked)
+        m.wheel_scrolled.connect(self._wheel_volume)
 
         p = self.playlist
         p.item_activated.connect(self._play_file)
@@ -439,47 +447,88 @@ class MainWindow(QMainWindow):
 
     def seek_forward(self):
         self.mpv.seek_rel(5)
+        self._osd("+5s")
 
     def seek_backward(self):
         self.mpv.seek_rel(-5)
+        self._osd("-5s")
 
     def seek_big_forward(self):
         self.mpv.seek_rel(30)
+        self._osd("+30s")
 
     def seek_big_backward(self):
         self.mpv.seek_rel(-30)
+        self._osd("-30s")
 
     def volume_up(self):
         self.mpv.volume_up()
         self.controls.set_volume(self.mpv.volume)
+        self._osd(f"音量 {self.mpv.volume}%")
 
     def volume_down(self):
         self.mpv.volume_down()
         self.controls.set_volume(self.mpv.volume)
+        self._osd(f"音量 {self.mpv.volume}%")
 
     def toggle_mute(self):
         self.mpv.toggle_mute()
         self.controls.set_muted(self.mpv.is_muted)
+        self._osd("静音" if self.mpv.is_muted else "取消静音")
 
     def speed_up(self):
         self.mpv.speed_up()
         self.controls.set_speed(self.mpv.speed)
+        self._osd(f"倍速 {self.mpv.speed:.1f}x")
 
     def speed_down(self):
         self.mpv.speed_down()
         self.controls.set_speed(self.mpv.speed)
+        self._osd(f"倍速 {self.mpv.speed:.1f}x")
+
+    # ── 画面鼠标交互 ──
+
+    def _on_video_clicked(self):
+        # 延迟一个双击间隔，双击全屏时取消单击的暂停/恢复
+        self._click_timer.start(QApplication.doubleClickInterval())
+
+    def _on_video_double_clicked(self):
+        self._click_timer.stop()
+        self.toggle_fullscreen()
+
+    def _wheel_volume(self, steps: int):
+        if steps > 0:
+            self.mpv.volume_up(steps * 5)
+        elif steps < 0:
+            self.mpv.volume_down(-steps * 5)
+        else:
+            return
+        self.controls.set_volume(self.mpv.volume)
+        self._osd(f"音量 {self.mpv.volume}%")
+
+    def _osd(self, text: str, ms: int = 800) -> None:
+        self.mpv.show_osd(text, ms)
 
     def toggle_fullscreen(self):
         if self.isFullScreen():
-            self.showNormal()
+            self._exit_fullscreen()
         else:
-            self.showFullScreen()
-        self.titlebar.setVisible(not self.isFullScreen())
+            self._enter_fullscreen()
 
     def exit_fullscreen(self):
-        if self.isFullScreen():
-            self.showNormal()
-            self.titlebar.setVisible(True)
+        self._exit_fullscreen()
+
+    def _enter_fullscreen(self):
+        self.showFullScreen()
+        self.titlebar.setVisible(False)
+        self.playlist.setVisible(False)  # 全屏沉浸；退出时按原状态恢复
+
+    def _exit_fullscreen(self):
+        if not self.isFullScreen():
+            return
+        self.showNormal()
+        self.titlebar.setVisible(True)
+        self.playlist.setVisible(self._playlist_visible)
 
     def toggle_playlist(self):
         self._playlist_visible = not self._playlist_visible

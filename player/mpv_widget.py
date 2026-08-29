@@ -4,7 +4,7 @@ import os
 import ctypes
 
 from PyQt6.QtWidgets import QWidget
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, QPoint, pyqtSignal
 
 # 优先加载 bundled bin/ 下的 libmpv
 _bin_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin")
@@ -26,6 +26,9 @@ class MpvWidget(QWidget):
     paused_changed = pyqtSignal(bool)
     file_loaded = pyqtSignal(str)
     finished = pyqtSignal()               # 播放到末尾（keep_open 下停在末帧）
+    video_clicked = pyqtSignal()          # 单击画面（区分双击，延迟判定）
+    video_double_clicked = pyqtSignal()   # 双击画面
+    wheel_scrolled = pyqtSignal(int)      # 滚轮刻度数（上正下负）
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -52,6 +55,37 @@ class MpvWidget(QWidget):
         self._mpv.observe_property("path", lambda _n, v: v is not None and self.file_loaded.emit(str(v)))
         # 播到末尾时 eof-reached 置 True（keep_open 下停在末帧），新文件加载时复位为 False
         self._mpv.observe_property("eof-reached", lambda _n, v: v and self.finished.emit())
+
+        self._press_pos: QPoint | None = None
+
+    # ── 鼠标交互 ──
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._press_pos = event.position().toPoint()
+        super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event) -> None:
+        if (event.button() == Qt.MouseButton.LeftButton
+                and self._press_pos is not None
+                and (event.position().toPoint() - self._press_pos).manhattanLength() <= 4):
+            self._press_pos = None
+            self.video_clicked.emit()
+        super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._press_pos = None  # 双击的第二次释放不再当作单击
+            self.video_double_clicked.emit()
+            event.accept()
+        else:
+            super().mouseDoubleClickEvent(event)
+
+    def wheelEvent(self, event) -> None:
+        steps = int(event.angleDelta().y() / 120)
+        if steps:
+            self.wheel_scrolled.emit(steps)
+        event.accept()
 
     # ── 播放控制 ──
 
@@ -87,6 +121,13 @@ class MpvWidget(QWidget):
 
     def set_speed(self, speed: float) -> None:
         self._mpv.speed = max(0.1, speed)
+
+    def show_osd(self, text: str, duration_ms: int = 800) -> None:
+        """在画面上短暂显示 OSD 文本（mpv show-text，全屏下也可见）。"""
+        try:
+            self._mpv.show_text(text, str(duration_ms))
+        except Exception:
+            pass
 
     def speed_up(self, step: float = 0.1) -> None:
         self.set_speed((self._mpv.speed or 1.0) + step)
