@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QSlider, QLabel,
-    QPushButton,
+    QPushButton, QStyle, QStyleOptionSlider,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
@@ -17,6 +17,31 @@ def _fmt(seconds: float) -> str:
     if h:
         return f"{h}:{m:02d}:{s:02d}"
     return f"{m}:{s:02d}"
+
+
+class SeekSlider(QSlider):
+    """支持单击跳转的进度条 — 点击凹槽直接跳到该位置，随后可继续拖拽。
+
+    原生 QSlider 点击凹槽只走一个 page step 且不触发 sliderPressed/Released，
+    导致单击进度条无法 seek；这里在按下时把值设到点击处，把手会落到光标下，
+    之后的按下/拖拽/释放全部走原生流程。
+    """
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            opt = QStyleOptionSlider()
+            self.initStyleOption(opt)
+            st = self.style()
+            groove = st.subControlRect(QStyle.ComplexControl.CC_Slider, opt,
+                                       QStyle.SubControl.SC_SliderGroove, self)
+            handle = st.subControlRect(QStyle.ComplexControl.CC_Slider, opt,
+                                       QStyle.SubControl.SC_SliderHandle, self)
+            if groove.isValid() and groove.width() > handle.width():
+                self.setValue(QStyle.sliderValueFromPosition(
+                    self.minimum(), self.maximum(),
+                    int(event.position().x()) - groove.x() - handle.width() // 2,
+                    groove.width() - handle.width()))
+        super().mousePressEvent(event)
 
 
 class ControlsBar(QWidget):
@@ -74,7 +99,7 @@ class ControlsBar(QWidget):
         layout.addWidget(self.btn_next)
 
         # ── 进度条 ──
-        self.slider = QSlider(Qt.Orientation.Horizontal)
+        self.slider = SeekSlider(Qt.Orientation.Horizontal)
         self.slider.setObjectName("SeekSlider")
         self.slider.setRange(0, 10000)
         self.slider.setValue(0)

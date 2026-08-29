@@ -107,6 +107,7 @@ class MainWindow(QMainWindow):
 
         # 恢复播放记忆
         state = load_state()
+        self._last_dir = state.get("last_dir", "")
         if state.get("geometry"):
             self.restoreGeometry(bytes.fromhex(state["geometry"]))
         if state.get("volume") is not None:
@@ -321,6 +322,7 @@ class MainWindow(QMainWindow):
         c.prev_clicked.connect(self.prev_file)
         c.next_clicked.connect(self.next_file)
         c.volume_changed.connect(self.mpv.set_volume)
+        c.speed_changed.connect(self.mpv.set_speed)
         c.mute_toggled.connect(self.toggle_mute)
         c.fullscreen_toggled.connect(self.toggle_fullscreen)
         c.always_on_top_toggled.connect(self.toggle_always_on_top)
@@ -351,8 +353,7 @@ class MainWindow(QMainWindow):
     def changeEvent(self, event):
         super().changeEvent(event)
         if event and event.type() == event.Type.WindowStateChange:
-            is_max = self.isMaximized()
-            m = 0 if is_max else 1
+            m = 0 if (self.isMaximized() or self.isFullScreen()) else 1
             self._root_layout.setContentsMargins(m, 0, m, m)
             self._update_cursor(self.mapFromGlobal(QCursor.pos()))
 
@@ -385,7 +386,6 @@ class MainWindow(QMainWindow):
         self.mpv.open(path)
         if not self.isVisible():
             self.show()
-        self.playlist.setVisible(True)
 
     def _on_file_loaded(self, path: str):
         self.titlebar.set_title(f"RedVideo — {Path(path).name}")
