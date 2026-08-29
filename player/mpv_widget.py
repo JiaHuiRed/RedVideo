@@ -25,6 +25,7 @@ class MpvWidget(QWidget):
     duration_changed = pyqtSignal(float)  # 总时长（秒）
     paused_changed = pyqtSignal(bool)
     file_loaded = pyqtSignal(str)
+    finished = pyqtSignal()               # 播放到末尾（keep_open 下停在末帧）
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -50,6 +51,8 @@ class MpvWidget(QWidget):
         self._mpv.observe_property("duration", lambda _n, v: v is not None and self.duration_changed.emit(float(v)))
         self._mpv.observe_property("pause", lambda _n, v: self.paused_changed.emit(bool(v)))
         self._mpv.observe_property("path", lambda _n, v: v is not None and self.file_loaded.emit(str(v)))
+        # 播到末尾时 eof-reached 置 True（keep_open 下停在末帧），新文件加载时复位为 False
+        self._mpv.observe_property("eof-reached", lambda _n, v: v and self.finished.emit())
 
     # ── 播放控制 ──
 

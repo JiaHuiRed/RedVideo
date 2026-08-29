@@ -332,6 +332,7 @@ class MainWindow(QMainWindow):
         m.paused_changed.connect(c.set_paused)
         m.position_changed.connect(lambda pos: c.update_time(pos, m.duration))
         m.duration_changed.connect(lambda dur: c.update_time(m.time_pos, dur))
+        m.finished.connect(self._on_playback_finished)
 
         p = self.playlist
         p.item_activated.connect(self._play_file)
@@ -383,6 +384,7 @@ class MainWindow(QMainWindow):
             self._play_file(files[0])
 
     def _play_file(self, path: str):
+        self.playlist.mark_playing(path)
         self.mpv.open(path)
         if not self.isVisible():
             self.show()
@@ -396,6 +398,12 @@ class MainWindow(QMainWindow):
             self._play_file(path)
 
     def next_file(self):
+        path = self.playlist.next_file()
+        if path:
+            self._play_file(path)
+
+    def _on_playback_finished(self):
+        # 播完自动连播下一曲；到列表末尾则停在末帧
         path = self.playlist.next_file()
         if path:
             self._play_file(path)

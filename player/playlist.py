@@ -1,5 +1,7 @@
 """播放列表侧栏"""
 
+import os
+
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
@@ -49,7 +51,10 @@ class PlaylistPanel(QWidget):
         self.list.itemDoubleClicked.connect(self._on_item_activated)
         layout.addWidget(self.list, 1)
 
-        self.btn_clear.clicked.connect(self.list.clear)
+        self.btn_clear.clicked.connect(self._clear)
+
+        # 正在播放的行：上一曲/下一曲以它为基准，而不是用户当前点选的行
+        self._playing_row = -1
 
     # ── API ──
 
@@ -61,31 +66,37 @@ class PlaylistPanel(QWidget):
             item.setToolTip(p)
             self.list.addItem(item)
 
+    def mark_playing(self, path: str) -> None:
+        """标记正在播放的文件：选中高亮该行并作为上/下一曲的基准。"""
+        row = self._row_for_path(path)
+        self._playing_row = row
+        if row >= 0:
+            self.list.setCurrentRow(row)
+
     def current_index(self) -> int:
-        return self.list.currentRow()
+        return self._playing_row
 
     def set_current_index(self, index: int) -> None:
         self.list.setCurrentRow(index)
 
     def prev_file(self) -> str | None:
-        row = self.list.currentRow()
-        if row > 0:
-            self.list.setCurrentRow(row - 1)
-            item = self.list.currentItem()
-            return item.data(Qt.ItemDataRole.UserRole) if item else None
+        if self._playing_row > 0:
+            return self._path_at(self._playing_row - 1)
         return None
 
     def next_file(self) -> str | None:
-        row = self.list.currentRow()
-        if row < self.list.count() - 1:
-            self.list.setCurrentRow(row + 1)
-            item = self.list.currentItem()
-            return item.data(Qt.ItemDataRole.UserRole) if item else None
+        if 0 <= self._playing_row < self.list.count() - 1:
+            return self._path_at(self._playing_row + 1)
         return None
 
     def remove_selected(self) -> None:
         for item in self.list.selectedItems():
-            self.list.takeItem(self.list.row(item))
+            row = self.list.row(item)
+            self.list.takeItem(row)
+            if row < self._playing_row:
+                self._playing_row -= 1
+            elif row == self._playing_row:
+                self._playing_row = -1
 
     # ── 拖拽 ──
 
@@ -103,6 +114,22 @@ class PlaylistPanel(QWidget):
             self.add_files(urls)
 
     # ── 内部 ──
+
+    def _path_at(self, row: int) -> str | None:
+        item = self.list.item(row)
+        return str(item.data(Qt.ItemDataRole.UserRole)) if item else None
+
+    def _row_for_path(self, path: str) -> int:
+        target = os.path.normcase(os.path.normpath(path))
+        for i in range(self.list.count()):
+            p = self.list.item(i).data(Qt.ItemDataRole.UserRole)
+            if p and os.path.normcase(os.path.normpath(p)) == target:
+                return i
+        return -1
+
+    def _clear(self) -> None:
+        self.list.clear()
+        self._playing_row = -1
 
     def _on_item_activated(self, item: QListWidgetItem) -> None:
         path = item.data(Qt.ItemDataRole.UserRole)
