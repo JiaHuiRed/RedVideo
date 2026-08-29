@@ -8,10 +8,12 @@
 - 结构：`main.py` 入口 + `player/` 包（window/widget/controls/playlist/shortcuts/titlebar/windows_effects/state）+ `scripts/`
 - 代码规模：11 个文件（新增 `player/state.py`），0 死代码，0 依赖环
 
-## 当前进度（2026-07-30）
+## 当前进度（2026-08-29）
 
-- 版本：0.3.2
-- 2026-07-30 已从远端拉取并更新到 `2508f9b`，完成 5 项本地优化（commit `bcb34cc` + `224eb7e`）
+- 版本：0.4.0（2026-08-29 发布，`d3b7180`..`dd10445` 共 6 个 commit + 文档）
+- 2026-08-29 完成一轮全面检查与修复：10 项 Bug 全部清零（倍速信号未连接、单击进度条不跳转、导航基准、state 目录迁移 %APPDATA%、Win10 Acrylic HRESULT 误判等），性能优化（duration 缓存、进度条节流、列表批量加载）
+- 新功能：EOF 连播 + 循环模式（L）、画面鼠标交互（双击全屏/单击暂停/滚轮音量）、OSD 反馈（mpv show-text）、外挂字幕（fuzzy + 拖挂载）、截图（S）、进度条单击跳转（SeekSlider）、多文件单实例传参、缺 libmpv 友好报错
+- 播放导航以 `_playing_row` 为基准（`PlaylistPanel.mark_playing`），`current_index()` 返回播放行
 - 全仓 0 死代码，0 未使用导入，代码质量健康
 
 ## 已知优化点（已完成）
@@ -23,6 +25,11 @@
 5. ~~`player/playlist.py` 空行噪音~~ → 182 行压到 110 行（`956d60d`）
 6. ~~`player/window.py` 未使用的 `QStyle` 导入~~ → 已删除（`6a038f3`）
 7. ~~`scripts/gen_icon.py` 未使用的 `ImageFilter` / `ImageFont` 导入~~ → 已删除（`6a038f3`）
+8. ~~倍速按钮 `speed_changed` 信号未连接~~ → 已连接（`d3b7180`）
+9. ~~原生 QSlider 单击凹槽不 seek~~ → `SeekSlider` 子类单击跳转（`d3b7180`）
+10. ~~prev/next 被点选行带偏~~ → 以播放行为基准（`328991b`）
+11. ~~state.json 写安装目录~~ → %APPDATA% + 旧文件迁移（`27ddead`）
+12. ~~Win10 SWCA Acrylic 永不生效~~ → HRESULT 判断修正 + tint 修正（`27ddead`）
 
 ## 关键路径
 
