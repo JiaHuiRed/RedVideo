@@ -49,17 +49,17 @@ QMenu::separator { height: 1px; background: rgba(255,255,255,0.05); margin: 4px 
     border-top: 1px solid rgba(255,255,255,0.04);
 }
 #BtnPlay {
-    background: transparent; border: none; border-radius: 18px;
-    color: rgba(255,255,255,0.9); font-size: 20px;
-    min-width: 36px; min-height: 36px;
+    background: rgba(255,255,255,0.07); border: none; border-radius: 20px;
+    min-width: 40px; min-height: 40px;
 }
-#BtnPlay:hover { background: rgba(255,255,255,0.12); color: #fff; }
-#BtnPlay:pressed { background: rgba(255,255,255,0.18); }
+#BtnPlay:hover { background: rgba(229,57,53,0.30); }
+#BtnPlay:pressed { background: rgba(229,57,53,0.42); }
 
 #BtnPrev, #BtnNext {
-    background: transparent; border: none; border-radius: 18px;
-    color: rgba(255,255,255,0.85); min-width: 36px; min-height: 36px;
+    background: transparent; border: none; border-radius: 16px;
+    min-width: 32px; min-height: 32px;
 }
+#BtnPrev:hover, #BtnNext:hover { background: rgba(255,255,255,0.12); }
 
 #SeekSlider::groove:horizontal { background: rgba(255,255,255,0.1); height: 3px; border-radius: 2px; }
 #SeekSlider::handle:horizontal { background: #e53935; width: 12px; height: 12px; margin: -5px 0; border-radius: 6px; }
@@ -71,14 +71,21 @@ QMenu::separator { height: 1px; background: rgba(255,255,255,0.05); margin: 4px 
     font-family: "Consolas","Courier New",monospace;
 }
 
-#BtnMute, #BtnFullscreen {
+#BtnMute, #BtnFullscreen, #BtnPin {
     background: transparent; border: none; border-radius: 14px;
-    color: rgba(255,255,255,0.7); font-size: 16px;
     min-width: 28px; min-height: 28px;
 }
-#BtnMute:hover, #BtnFullscreen:hover {
-    background: rgba(255,255,255,0.12); color: #fff;
+#BtnMute:hover, #BtnFullscreen:hover, #BtnPin:hover {
+    background: rgba(255,255,255,0.12);
 }
+#BtnPin:checked { background: rgba(229,57,53,0.20); }
+
+#BtnSpeed {
+    background: transparent; border: none; border-radius: 13px;
+    color: rgba(255,255,255,0.55); font-size: 11px; font-weight: 600;
+    min-width: 42px; min-height: 26px; padding: 0 8px;
+}
+#BtnSpeed:hover { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.95); }
 
 #VolSlider::groove:horizontal { background: rgba(255,255,255,0.1); height: 3px; border-radius: 2px; }
 #VolSlider::handle:horizontal { background: #e53935; width: 10px; height: 10px; margin: -4px 0; border-radius: 5px; }

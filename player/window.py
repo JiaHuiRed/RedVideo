@@ -242,6 +242,7 @@ class MainWindow(QMainWindow):
             return
         self._theme = name
         apply_theme(name)
+        self.controls.apply_icon_theme(name)
 
     # ── 构建 UI ──
 
@@ -363,6 +364,7 @@ class MainWindow(QMainWindow):
         root.addWidget(splitter, 1)
 
         self.controls = ControlsBar()
+        self.controls.apply_icon_theme(self._theme)
         root.addWidget(self.controls)
 
     def _connect_signals(self):

@@ -6,6 +6,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
+from .icons import IconButton, palette_for
+
 
 def _fmt(seconds: float) -> str:
     """秒 → hh:mm:ss"""
@@ -79,22 +81,22 @@ class ControlsBar(QWidget):
         layout.setContentsMargins(12, 4, 12, 8)
         layout.setSpacing(8)
 
-        # ── 播放控制 ──
-        self.btn_prev = QPushButton("⏮")
+        # ── 播放控制（播放键是主角：40px 圆形，其余 32px 幽灵）──
+        self.btn_prev = IconButton("prev", px=18)
         self.btn_prev.setObjectName("BtnPrev")
-        self.btn_prev.setFixedSize(36, 36)
+        self.btn_prev.setFixedSize(32, 32)
         self.btn_prev.clicked.connect(self.prev_clicked)
         layout.addWidget(self.btn_prev)
 
-        self.btn_play = QPushButton("▶")
+        self.btn_play = IconButton("play", px=20)
         self.btn_play.setObjectName("BtnPlay")
-        self.btn_play.setFixedSize(36, 36)
+        self.btn_play.setFixedSize(40, 40)
         self.btn_play.clicked.connect(self.play_toggled)
         layout.addWidget(self.btn_play)
 
-        self.btn_next = QPushButton("⏭")
+        self.btn_next = IconButton("next", px=18)
         self.btn_next.setObjectName("BtnNext")
-        self.btn_next.setFixedSize(36, 36)
+        self.btn_next.setFixedSize(32, 32)
         self.btn_next.clicked.connect(self.next_clicked)
         layout.addWidget(self.btn_next)
 
@@ -116,7 +118,7 @@ class ControlsBar(QWidget):
         layout.addWidget(self.lbl_time)
 
         # ── 音量 ──
-        self.btn_mute = QPushButton("🔊")
+        self.btn_mute = IconButton("volume", px=16)
         self.btn_mute.setObjectName("BtnMute")
         self.btn_mute.setFixedSize(28, 28)
         self.btn_mute.clicked.connect(self.mute_toggled)
@@ -133,12 +135,12 @@ class ControlsBar(QWidget):
         # ── 倍速 ──
         self.btn_speed = QPushButton("1.0x")
         self.btn_speed.setObjectName("BtnSpeed")
-        self.btn_speed.setFixedSize(36, 28)
+        self.btn_speed.setFixedSize(42, 28)
         self.btn_speed.clicked.connect(self._cycle_speed)
         layout.addWidget(self.btn_speed)
 
-        # ── 置顶 ──
-        self.btn_pin = QPushButton("📌")
+        # ── 置顶（激活时图标转主题强调色，QSS 加底色）──
+        self.btn_pin = IconButton("pin", px=16)
         self.btn_pin.setObjectName("BtnPin")
         self.btn_pin.setFixedSize(28, 28)
         self.btn_pin.setCheckable(True)
@@ -146,7 +148,7 @@ class ControlsBar(QWidget):
         layout.addWidget(self.btn_pin)
 
         # ── 全屏 ──
-        self.btn_fs = QPushButton("⛶")
+        self.btn_fs = IconButton("fullscreen", px=16)
         self.btn_fs.setObjectName("BtnFullscreen")
         self.btn_fs.setFixedSize(28, 28)
         self.btn_fs.clicked.connect(self.fullscreen_toggled)
@@ -156,6 +158,8 @@ class ControlsBar(QWidget):
         for btn in (self.btn_prev, self.btn_play, self.btn_next, self.btn_mute,
                     self.btn_speed, self.btn_pin, self.btn_fs):
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+        self.apply_icon_theme("night")  # 主窗口创建后会按实际主题再调一次
 
     # ── API ──
 
@@ -176,13 +180,13 @@ class ControlsBar(QWidget):
             self.slider.setValue(int(min(1.0, pos / duration) * 10000))
 
     def set_paused(self, paused: bool) -> None:
-        self.btn_play.setText("▶" if paused else "⏸")
+        self.btn_play.set_icon_name("play" if paused else "pause")
 
     def set_volume(self, vol: int) -> None:
         self.vol_slider.setValue(vol)
 
     def set_muted(self, muted: bool) -> None:
-        self.btn_mute.setText("🔇" if muted else "🔊")
+        self.btn_mute.set_icon_name("volume_muted" if muted else "volume")
 
     def set_speed(self, speed: float) -> None:
         self._speed = max(0.5, min(2.0, speed))
@@ -191,6 +195,14 @@ class ControlsBar(QWidget):
 
     def set_always_on_top(self, checked: bool) -> None:
         self.btn_pin.setChecked(checked)
+        self.btn_pin.set_active(checked)
+
+    def apply_icon_theme(self, theme: str) -> None:
+        """主题切换时同步图标配色（accent 与该主题 QSS 强调色一致）。"""
+        pal = palette_for(theme)
+        for btn in (self.btn_prev, self.btn_play, self.btn_next, self.btn_mute,
+                    self.btn_pin, self.btn_fs):
+            btn.set_colors(pal["base"], pal["hover"], pal["accent"])
 
     def _cycle_speed(self):
         nxt = round(self._speed + 0.1, 1)
