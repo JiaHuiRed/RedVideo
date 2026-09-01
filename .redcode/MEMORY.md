@@ -10,7 +10,7 @@
 
 ## 当前进度（2026-08-29）
 
-- 版本：0.4.0（2026-08-29 发布，`d3b7180`..`dd10445` 共 6 个 commit + 文档）
+- 版本：0.4.0（2026-08-29 发布，`d3b7180`..`1dda2b7` 共 7 个 commit + 文档）
 - 2026-08-29 完成一轮全面检查与修复：10 项 Bug 全部清零（倍速信号未连接、单击进度条不跳转、导航基准、state 目录迁移 %APPDATA%、Win10 Acrylic HRESULT 误判等），性能优化（duration 缓存、进度条节流、列表批量加载）
 - 新功能：EOF 连播 + 循环模式（L）、画面鼠标交互（双击全屏/单击暂停/滚轮音量）、OSD 反馈（mpv show-text）、外挂字幕（fuzzy + 拖挂载）、截图（S）、进度条单击跳转（SeekSlider）、多文件单实例传参、缺 libmpv 友好报错
 - 播放导航以 `_playing_row` 为基准（`PlaylistPanel.mark_playing`），`current_index()` 返回播放行
