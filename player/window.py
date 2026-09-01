@@ -121,8 +121,9 @@ class MainWindow(QMainWindow):
         if state.get("geometry"):
             self.restoreGeometry(bytes.fromhex(state["geometry"]))
         if state.get("volume") is not None:
-            self.mpv.set_volume(state["volume"])
-            self.controls.set_volume(state["volume"])
+            vol = int(state["volume"])  # mpv.volume 是 float，QSlider 只收 int
+            self.mpv.set_volume(vol)
+            self.controls.set_volume(vol)
         if state.get("speed") is not None:
             self.mpv.set_speed(state["speed"])
             self.controls.set_speed(state["speed"])
@@ -650,7 +651,7 @@ class MainWindow(QMainWindow):
         pos = self.mpv.time_pos if self.mpv.filename else None
         save_state({
             "geometry": geo,
-            "volume": self.mpv.volume,
+            "volume": int(self.mpv.volume),
             "speed": self.mpv.speed,
             "theme": self._theme,
             "last_file": self.mpv.filename,
