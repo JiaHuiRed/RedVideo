@@ -61,6 +61,10 @@ _ICONS: dict[str, str] = {
         '<path d="M4 9V6a2 2 0 0 1 2-2h3M15 4h3a2 2 0 0 1 2 2v3'
         'M20 15v3a2 2 0 0 1-2 2h-3M9 20H6a2 2 0 0 1-2-2v-3"/>'
     ),
+    "video": (
+        '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/>'
+        '<path d="M10.2 9.5v5l4.3-2.5z" fill="{c}" stroke="{c}" stroke-width="1.5"/>'
+    ),
 }
 
 # 各主题的图标配色（accent 与该主题 QSS 的滑杆/选中色保持一致）

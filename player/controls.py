@@ -57,7 +57,7 @@ class ControlsBar(QWidget):
     mute_toggled = pyqtSignal()
     fullscreen_toggled = pyqtSignal()
     speed_changed = pyqtSignal(float)
-    always_on_top_toggled = pyqtSignal()
+    always_on_top_toggled = pyqtSignal(bool)
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -79,7 +79,8 @@ class ControlsBar(QWidget):
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(12, 4, 12, 8)
-        layout.setSpacing(8)
+        # 组内 6px、组间再叠加 10px：传输 | 进度 | 时间 | 音量 | 附加 五组
+        layout.setSpacing(6)
 
         # ── 播放控制（播放键是主角：40px 圆形，其余 32px 幽灵）──
         self.btn_prev = IconButton("prev", px=18)
@@ -99,6 +100,7 @@ class ControlsBar(QWidget):
         self.btn_next.setFixedSize(32, 32)
         self.btn_next.clicked.connect(self.next_clicked)
         layout.addWidget(self.btn_next)
+        layout.addSpacing(10)  # ── 传输 | 进度 ──
 
         # ── 进度条 ──
         self.slider = SeekSlider(Qt.Orientation.Horizontal)
@@ -116,6 +118,7 @@ class ControlsBar(QWidget):
         self.lbl_time.setFixedWidth(120)
         self.lbl_time.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.lbl_time)
+        layout.addSpacing(10)  # ── 进度 | 音量 ──
 
         # ── 音量 ──
         self.btn_mute = IconButton("volume", px=16)
@@ -131,6 +134,7 @@ class ControlsBar(QWidget):
         self.vol_slider.setFixedWidth(80)
         self.vol_slider.valueChanged.connect(lambda v: self.volume_changed.emit(v))
         layout.addWidget(self.vol_slider)
+        layout.addSpacing(10)  # ── 音量 | 附加 ──
 
         # ── 倍速 ──
         self.btn_speed = QPushButton("1.0x")
@@ -144,7 +148,7 @@ class ControlsBar(QWidget):
         self.btn_pin.setObjectName("BtnPin")
         self.btn_pin.setFixedSize(28, 28)
         self.btn_pin.setCheckable(True)
-        self.btn_pin.clicked.connect(self.always_on_top_toggled.emit)
+        self.btn_pin.toggled.connect(self.always_on_top_toggled.emit)
         layout.addWidget(self.btn_pin)
 
         # ── 全屏 ──

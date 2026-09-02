@@ -31,7 +31,7 @@ def _base() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-VERSION = "0.4.0"
+VERSION = "0.5.1"
 
 THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}
@@ -244,6 +244,7 @@ class MainWindow(QMainWindow):
         self._theme = name
         apply_theme(name)
         self.controls.apply_icon_theme(name)
+        self.playlist.apply_icon_theme(name)
 
     # ── 构建 UI ──
 
@@ -366,6 +367,7 @@ class MainWindow(QMainWindow):
 
         self.controls = ControlsBar()
         self.controls.apply_icon_theme(self._theme)
+        self.playlist.apply_icon_theme(self._theme)
         root.addWidget(self.controls)
 
     def _connect_signals(self):
@@ -399,8 +401,9 @@ class MainWindow(QMainWindow):
     def showEvent(self, event):
         super().showEvent(event)
         if not self._acrylic_applied:
-            enable_acrylic(int(self.winId()), dark_tint=self._theme != "day")
-            self._acrylic_applied = True
+            self._acrylic_applied = enable_acrylic(
+                int(self.winId()), dark_tint=self._theme != "day",
+            )
 
     def _toggle_maximize(self):
         if self.isMaximized():

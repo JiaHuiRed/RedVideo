@@ -88,6 +88,8 @@ QMenu::separator { height: 1px; background: rgba(0,0,0,0.06); margin: 4px 12px; 
     color: rgba(0,0,0,0.4); font-size: 11px; padding: 2px 8px;
 }
 #BtnClear:hover { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.85); }
+#BtnClear:disabled { border-color: rgba(0,0,0,0.05); color: rgba(0,0,0,0.15); }
+#PlaylistEmptyText { color: rgba(0,0,0,0.3); font-size: 12px; }
 #PlaylistList { background: transparent; color: rgba(0,0,0,0.7); border: none; font-size: 12px; outline: none; }
 #PlaylistList::item { padding: 6px 12px; border-bottom: 1px solid rgba(0,0,0,0.02); }
 #PlaylistList::item:selected { background: rgba(211,47,47,0.25); color: #000; }

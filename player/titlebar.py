@@ -1,12 +1,14 @@
 """macOS 风格自定义标题栏 — 交通灯按钮 + 拖拽移动"""
 
-from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QLabel
-from PyQt6.QtCore import Qt, QPoint, pyqtSignal
+from PyQt6.QtWidgets import QWidget, QHBoxLayout, QPushButton, QLabel, QApplication
+from PyQt6.QtCore import Qt, QPoint, QTimer, pyqtSignal
 from PyQt6.QtGui import QPainter, QColor
+from player.windows_effects import disable_acrylic, enable_acrylic
 
 TRAFFIC_SIZE = 12
 TRAFFIC_MARGIN = 8
 TITLEBAR_HEIGHT = 34
+DRAG_INTERVAL_MS = 8
 
 # macOS 交通灯颜色
 COLOR_CLOSE = "#ff5f56"
@@ -46,8 +48,13 @@ class Titlebar(QWidget):
         self.setFixedHeight(TITLEBAR_HEIGHT)
         self.setObjectName("Titlebar")
 
-        self._drag_pos = QPoint()
         self._dragging = False
+        self._drag_offset: QPoint | None = None
+        self._pending_global_pos: QPoint | None = None
+        self._acrylic_was_applied = False
+        self._drag_timer = QTimer(self)
+        self._drag_timer.setInterval(DRAG_INTERVAL_MS)
+        self._drag_timer.timeout.connect(self._flush_drag)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(TRAFFIC_MARGIN, 0, TRAFFIC_MARGIN, 0)
@@ -85,28 +92,70 @@ class Titlebar(QWidget):
 
     # ── 窗口拖拽 ──
 
+    def _move_to_pending(self) -> None:
+        if self._drag_offset is None or self._pending_global_pos is None:
+            return
+        self.window().move(self._pending_global_pos - self._drag_offset)
+
+    def _flush_drag(self) -> None:
+        if not self._dragging or self._drag_offset is None or self._pending_global_pos is None:
+            return
+        if not (QApplication.mouseButtons() & Qt.MouseButton.LeftButton):
+            self._stop_drag()
+            return
+        self._move_to_pending()
+
+    def _stop_drag(self, flush: bool = False) -> None:
+        if not self._dragging:
+            return
+        if flush:
+            self._move_to_pending()
+        restore_acrylic = self._acrylic_was_applied
+        self._dragging = False
+        self._drag_offset = None
+        self._pending_global_pos = None
+        self._acrylic_was_applied = False
+        self._drag_timer.stop()
+        self.releaseMouse()
+        if restore_acrylic:
+            win = self.window()
+            enable_acrylic(int(win.winId()), dark_tint=getattr(win, "_theme", "night") != "day")
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
-            self._drag_pos = event.globalPosition().toPoint()
-            self._dragging = True
-            event.accept()
-
-    def mouseMoveEvent(self, event):
-        if self._dragging and event.buttons() == Qt.MouseButton.LeftButton:
             win = self.window()
             if win.isMaximized() or win.isFullScreen():
                 return
-            delta = event.globalPosition().toPoint() - self._drag_pos
-            win.move(win.x() + delta.x(), win.y() + delta.y())
-            self._drag_pos = event.globalPosition().toPoint()
+            global_pos = event.globalPosition().toPoint()
+            if getattr(win, "_acrylic_applied", False):
+                self._acrylic_was_applied = disable_acrylic(int(win.winId()))
+            self._drag_offset = global_pos - win.frameGeometry().topLeft()
+            self._pending_global_pos = global_pos
+            self._dragging = True
+            self.grabMouse()
+            self._drag_timer.start()
             event.accept()
 
-    def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self._dragging = False
+    def mouseMoveEvent(self, event):
+        if self._dragging and not (QApplication.mouseButtons() & Qt.MouseButton.LeftButton):
+            self._stop_drag()
             event.accept()
+            return
+        if self._dragging and event.buttons() & Qt.MouseButton.LeftButton:
+            self._pending_global_pos = event.globalPosition().toPoint()
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._dragging:
+            self._stop_drag()
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton:
+            self._stop_drag()
             self.maximize_clicked.emit()
             event.accept()

@@ -8,8 +8,10 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QListWidget, QListWidgetItem,
     QLabel, QPushButton, QHBoxLayout, QSizePolicy,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal, QEvent
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+
+from .icons import icon as svg_icon, palette_for
 
 SUB_EXTS = {".srt", ".ass", ".ssa", ".vtt", ".sub"}
 
@@ -56,8 +58,28 @@ class PlaylistPanel(QWidget):
 
         self.btn_clear.clicked.connect(self._clear)
 
+        # 空态覆盖层：图标 + 拖入提示；清空按钮在空列表时置灰
+        self._build_empty_overlay()
+        self._update_empty_state()
+
         # 正在播放的行：上一曲/下一曲以它为基准，而不是用户当前点选的行
         self._playing_row = -1
+
+    def _build_empty_overlay(self):
+        self._empty_overlay = QWidget(self.list)
+        box = QVBoxLayout(self._empty_overlay)
+        box.setContentsMargins(16, 0, 16, 32)
+        box.addStretch(1)
+        self._empty_icon = QLabel()
+        self._empty_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        box.addWidget(self._empty_icon)
+        text = QLabel("把视频拖到这里\n或按 Ctrl+O 打开文件")
+        text.setObjectName("PlaylistEmptyText")
+        text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        box.addWidget(text)
+        box.addStretch(2)
+        self._empty_overlay.setGeometry(self.list.rect())
+        self.list.installEventFilter(self)  # 覆盖层跟随列表尺寸
 
     # ── API ──
 
@@ -75,6 +97,7 @@ class PlaylistPanel(QWidget):
                 self.list.addItem(item)
         finally:
             self.list.setUpdatesEnabled(True)
+        self._update_empty_state()
 
     def mark_playing(self, path: str) -> None:
         """标记正在播放的文件：选中高亮该行并作为上/下一曲的基准。"""
@@ -111,6 +134,15 @@ class PlaylistPanel(QWidget):
                 self._playing_row -= 1
             elif row == self._playing_row:
                 self._playing_row = -1
+        self._update_empty_state()
+
+    # ── 主题 ──
+
+    def apply_icon_theme(self, theme: str) -> None:
+        """空态图标随主题换色（文字颜色走 QSS）。"""
+        pal = palette_for(theme)
+        pm = svg_icon("video", pal["base"], 44).pixmap(44, 44)
+        self._empty_icon.setPixmap(pm)
 
     # ── 拖拽 ──
 
@@ -148,6 +180,17 @@ class PlaylistPanel(QWidget):
     def _clear(self) -> None:
         self.list.clear()
         self._playing_row = -1
+        self._update_empty_state()
+
+    def _update_empty_state(self) -> None:
+        empty = self.list.count() == 0
+        self._empty_overlay.setVisible(empty)
+        self.btn_clear.setEnabled(not empty)
+
+    def eventFilter(self, obj, event):
+        if obj is self.list and event.type() == QEvent.Type.Resize:
+            self._empty_overlay.setGeometry(self.list.rect())
+        return super().eventFilter(obj, event)
 
     def _on_item_activated(self, item: QListWidgetItem) -> None:
         path = item.data(Qt.ItemDataRole.UserRole)

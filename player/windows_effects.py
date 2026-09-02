@@ -54,6 +54,7 @@ def _dwm_set_backdrop(hwnd: int, backdrop_type: int) -> bool:
 # ── SetWindowCompositionAttribute (Win10 Acrylic) ──
 
 _ACCENT_ENABLE_ACRYLICBLUR = 4
+_ACCENT_DISABLED = 0
 _WCA_ACCENT_POLICY = 19
 
 
@@ -113,6 +114,20 @@ def _swca_acrylic(hwnd: int, dark_tint: bool = True) -> bool:
     return _SetWindowCompositionAttribute(hwnd, data)
 
 
+def _swca_disable(hwnd: int) -> bool:
+    """关闭通过 SetWindowCompositionAttribute 设置的效果。"""
+    if not _SetWindowCompositionAttribute:
+        if not _init_swca():
+            return False
+    accent = _ACCENT_POLICY(AccentState=_ACCENT_DISABLED)
+    data = _WINCOMPATTRDATA(
+        Attribute=_WCA_ACCENT_POLICY,
+        Data=ctypes.pointer(accent),
+        SizeOfData=ctypes.sizeof(accent),
+    )
+    return _SetWindowCompositionAttribute(hwnd, data)
+
+
 def enable_acrylic(hwnd: int, dark_tint: bool = True) -> bool:
     """尝试启用亚克力毛玻璃效果。
 
@@ -131,6 +146,16 @@ def enable_acrylic(hwnd: int, dark_tint: bool = True) -> bool:
 
     # Win10: SWCA Acrylic
     return _swca_acrylic(hwnd, dark_tint)
+
+
+def disable_acrylic(hwnd: int) -> bool:
+    """临时关闭窗口毛玻璃，避免拖动时 DWM 合成产生延迟。"""
+    # Win11 DWM Acrylic
+    if _dwm_set_backdrop(hwnd, _DWMA_SBT_DISABLE):
+        return True
+
+    # Win10 SWCA Acrylic
+    return _swca_disable(hwnd)
 
 
 
