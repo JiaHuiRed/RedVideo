@@ -32,7 +32,7 @@ def _base() -> Path:
     return Path(__file__).resolve().parent.parent
 
 
-VERSION = "0.5.1"
+VERSION = "0.5.2"
 
 THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}
