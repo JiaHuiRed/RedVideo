@@ -3,17 +3,10 @@
 QMainWindow { background: #e8e8ec; }
 
 #Titlebar {
-    background: rgba(232, 232, 236, 0.85);
+    background: rgba(232, 232, 236, 0.60);
     border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 #TitleLabel { color: rgba(0,0,0,0.75); font-size: 12px; font-weight: 500; }
-#VersionLabel {
-    color: rgba(0,0,0,0.3);
-    font-size: 10px;
-    background: rgba(0,0,0,0.06);
-    border-radius: 3px;
-    padding: 1px 5px;
-}
 #TrafficButton { background: transparent; border: none; }
 
 #MenuButton {
@@ -31,13 +24,14 @@ QMenu {
 QMenu::item { padding: 6px 24px; border-radius: 4px; }
 QMenu::item:selected { background: rgba(211,47,47,0.15); }
 QMenu::item:disabled { color: rgba(0,0,0,0.2); }
+QMenu::indicator:checked { background: #d32f2f; border-radius: 4px; width: 8px; height: 8px; margin-left: 4px; }
 QMenu::separator { height: 1px; background: rgba(0,0,0,0.06); margin: 4px 12px; }
 
 #VideoContainer { background: #000; }
 
 #ControlsBar {
-    background: rgba(232, 232, 236, 0.88);
-    border-top: 1px solid rgba(0,0,0,0.06);
+    /* 顶部半透明渐变：视频画面与控制栏柔和过渡 */
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(232,232,236,0.50), stop:1 rgba(232,232,236,0.94));
 }
 #BtnPlay {
     background: rgba(0,0,0,0.06); border: none; border-radius: 20px;

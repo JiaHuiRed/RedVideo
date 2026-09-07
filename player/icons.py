@@ -65,6 +65,12 @@ _ICONS: dict[str, str] = {
         '<rect x="3.5" y="5" width="17" height="14" rx="2.5"/>'
         '<path d="M10.2 9.5v5l4.3-2.5z" fill="{c}" stroke="{c}" stroke-width="1.5"/>'
     ),
+    "menu": (
+        '<path d="M4.5 7h15M4.5 12h15M4.5 17h15"/>'
+    ),
+    "dot": (
+        '<circle cx="12" cy="12" r="6" fill="{c}" stroke="none"/>'
+    ),
 }
 
 # 各主题的图标配色（accent 与该主题 QSS 的滑杆/选中色保持一致）

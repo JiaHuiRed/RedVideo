@@ -8,8 +8,8 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QListWidget, QListWidgetItem,
     QLabel, QPushButton, QHBoxLayout, QSizePolicy,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QEvent
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtCore import Qt, pyqtSignal, QEvent, QSize
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QIcon
 
 from .icons import icon as svg_icon, palette_for
 
@@ -53,6 +53,7 @@ class PlaylistPanel(QWidget):
         self.list.setObjectName("PlaylistList")
         self.list.setAlternatingRowColors(True)
         self.list.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
+        self.list.setIconSize(QSize(10, 10))  # 播放行红点
         self.list.itemDoubleClicked.connect(self._on_item_activated)
         layout.addWidget(self.list, 1)
 
@@ -64,6 +65,7 @@ class PlaylistPanel(QWidget):
 
         # 正在播放的行：上一曲/下一曲以它为基准，而不是用户当前点选的行
         self._playing_row = -1
+        self._accent = "#e53935"  # apply_icon_theme 按主题覆盖
 
     def _build_empty_overlay(self):
         self._empty_overlay = QWidget(self.list)
@@ -102,9 +104,15 @@ class PlaylistPanel(QWidget):
     def mark_playing(self, path: str) -> None:
         """标记正在播放的文件：选中高亮该行并作为上/下一曲的基准。"""
         row = self._row_for_path(path)
+        self._clear_playing_icon()
         self._playing_row = row
         if row >= 0:
             self.list.setCurrentRow(row)
+            self.list.item(row).setIcon(QIcon(svg_icon("dot", self._accent, 10).pixmap(10, 10)))
+
+    def _clear_playing_icon(self) -> None:
+        if 0 <= self._playing_row < self.list.count():
+            self.list.item(self._playing_row).setIcon(QIcon())
 
     def current_index(self) -> int:
         return self._playing_row
@@ -139,10 +147,14 @@ class PlaylistPanel(QWidget):
     # ── 主题 ──
 
     def apply_icon_theme(self, theme: str) -> None:
-        """空态图标随主题换色（文字颜色走 QSS）。"""
+        """空态图标与播放行红点随主题换色（文字颜色走 QSS）。"""
         pal = palette_for(theme)
+        self._accent = pal["accent"]
         pm = svg_icon("video", pal["base"], 44).pixmap(44, 44)
         self._empty_icon.setPixmap(pm)
+        if 0 <= self._playing_row < self.list.count():
+            self.list.item(self._playing_row).setIcon(
+                QIcon(svg_icon("dot", self._accent, 10).pixmap(10, 10)))
 
     # ── 拖拽 ──
 

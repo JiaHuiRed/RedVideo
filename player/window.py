@@ -6,7 +6,7 @@ from pathlib import Path
 
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
-    QFileDialog, QSplitter, QMenu, QToolButton, QApplication,
+    QFileDialog, QSplitter, QMenu, QMessageBox, QApplication,
 )
 from PyQt6.QtCore import Qt, QRect, QPoint, QTimer
 from PyQt6.QtGui import (
@@ -17,6 +17,7 @@ from PyQt6.QtGui import (
 from player.mpv_widget import MpvWidget
 from player.controls import ControlsBar
 from player.playlist import PlaylistPanel, SUB_EXTS
+from player.icons import IconButton, palette_for
 from player.shortcuts import Shortcuts
 from player.titlebar import Titlebar, TITLEBAR_HEIGHT
 from player.windows_effects import enable_acrylic
@@ -243,25 +244,22 @@ class MainWindow(QMainWindow):
             return
         self._theme = name
         apply_theme(name)
-        self.controls.apply_icon_theme(name)
-        self.playlist.apply_icon_theme(name)
+        self._apply_icon_palette(name)
 
     # ── 构建 UI ──
 
     def _build_titlebar(self):
-        self.titlebar = Titlebar("RedVideo", version=VERSION)
+        self.titlebar = Titlebar("RedVideo")
         self.titlebar.close_clicked.connect(self.close)
         self.titlebar.minimize_clicked.connect(self.showMinimized)
         self.titlebar.maximize_clicked.connect(self._toggle_maximize)
 
-        menu_btn = QToolButton()
-        menu_btn.setObjectName("MenuButton")
-        menu_btn.setArrowType(Qt.ArrowType.DownArrow)
-        menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        menu_btn.setCursor(Qt.CursorShape.ArrowCursor)
-        menu_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.menu_btn = IconButton("menu", px=16)
+        self.menu_btn.setObjectName("MenuButton")
+        self.menu_btn.setCursor(Qt.CursorShape.ArrowCursor)
+        self.menu_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-        menu = QMenu(menu_btn)
+        menu = QMenu(self.menu_btn)
 
         # 文件
         act_open = QAction("打开文件...", self)
@@ -325,19 +323,37 @@ class MainWindow(QMainWindow):
 
         menu.addSeparator()
 
+        act_about = QAction("关于 RedVideo", self)
+        act_about.triggered.connect(self._show_about)
+        menu.addAction(act_about)
+
         act_close = QAction("退出", self)
         act_close.setShortcut("Ctrl+Q")
         act_close.triggered.connect(self.close)
         menu.addAction(act_close)
 
-        menu_btn.setMenu(menu)
-        self.titlebar.layout().addWidget(menu_btn)
+        self.menu_btn.setMenu(menu)
+        self.titlebar.layout().addWidget(self.menu_btn)
+
+    def _show_about(self) -> None:
+        QMessageBox.about(
+            self, "关于 RedVideo",
+            f"<b>RedVideo v{VERSION}</b><br><br>"
+            "基于 mpv 的 macOS 风格视频播放器。<br>"
+            "Qt + libmpv，作者 JiaHuiRed。")
+
+    def _apply_icon_palette(self, theme: str) -> None:
+        """把主题图标配色应用到所有 SVG 图标控件。"""
+        pal = palette_for(theme)
+        self.controls.apply_icon_theme(theme)
+        self.playlist.apply_icon_theme(theme)
+        self.menu_btn.set_colors(pal["base"], pal["hover"], pal["accent"])
 
     def _build_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
         self._root_layout = QVBoxLayout(central)
-        self._root_layout.setContentsMargins(1, 0, 1, 1)
+        self._root_layout.setContentsMargins(0, 0, 0, 0)  # 1px 边缝会露出主窗口底色形成亮线
         self._root_layout.setSpacing(0)
         root = self._root_layout
 
@@ -366,8 +382,7 @@ class MainWindow(QMainWindow):
         root.addWidget(splitter, 1)
 
         self.controls = ControlsBar()
-        self.controls.apply_icon_theme(self._theme)
-        self.playlist.apply_icon_theme(self._theme)
+        self._apply_icon_palette(self._theme)
         root.addWidget(self.controls)
 
     def _connect_signals(self):
