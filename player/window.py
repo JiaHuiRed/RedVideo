@@ -526,6 +526,8 @@ class MainWindow(QMainWindow):
             self._play_file(path)
 
     def _on_playback_finished(self):
+        # EOF 时把进度条/时间钉在终点（mpv 末帧 time-pos 略小于 duration）
+        self.controls.set_finished(self._duration)
         if self._loop_mode == "one":
             self.mpv.replay()
             return

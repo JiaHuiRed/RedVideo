@@ -68,6 +68,7 @@ class ControlsBar(QWidget):
         self._pending_time = (0.0, 0.0)
         self._speed: float = 1.0
         self._preview_mode = False
+        self._finished = False  # EOF 后钉住终点显示，忽略 mpv 归零 tick
         self._ui_timer = QTimer(self)
         self._ui_timer.setSingleShot(True)
         self._ui_timer.timeout.connect(self._flush_time)
@@ -171,6 +172,9 @@ class ControlsBar(QWidget):
         self._duration = duration
         if self._preview_mode:
             return
+        if self._finished and duration <= 0:
+            return  # EOF 后 mpv 的归零 tick 不把显示刷回起点
+        self._finished = False
         self._pending_time = (pos, duration)
         # 单次定时器活跃时不重置：高频率 tick 不会把节流饿死，且最多 100ms 刷一次
         if not self._ui_timer.isActive():
@@ -185,6 +189,21 @@ class ControlsBar(QWidget):
 
     def set_paused(self, paused: bool) -> None:
         self.btn_play.set_icon_name("play" if paused else "pause")
+
+    def set_finished(self, duration: float) -> None:
+        """EOF 后把进度条与时间标签钉在终点。
+
+        keep_open 下 mpv 停在最后一帧，time-pos 略小于 duration，
+        直接按比例算滑块会差一截到头；这里显式补满。
+        """
+        if duration <= 0:
+            return
+        self._duration = duration
+        self._pending_time = (duration, duration)
+        self._finished = True
+        self.slider.setValue(self.slider.maximum())
+        self.lbl_time.setText(
+            f"{_fmt(duration)} / {_fmt(duration)} · {self._speed:.1f}x")
 
     def set_volume(self, vol: int) -> None:
         self.vol_slider.setValue(vol)
