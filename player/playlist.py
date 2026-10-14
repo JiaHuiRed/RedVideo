@@ -102,7 +102,11 @@ class PlaylistPanel(QWidget):
         self._update_empty_state()
 
     def mark_playing(self, path: str) -> None:
-        """标记正在播放的文件：选中高亮该行并作为上/下一曲的基准。"""
+        """标记正在播放的文件：选中高亮该行并作为上/下一曲的基准。
+
+        列表允许重复路径（用户可能想重播）；此时标记第一条匹配行。
+        文件不在列表中时 _playing_row = -1：继续播放但不参与列表导航。
+        """
         row = self._row_for_path(path)
         self._clear_playing_icon()
         self._playing_row = row
@@ -116,9 +120,6 @@ class PlaylistPanel(QWidget):
 
     def current_index(self) -> int:
         return self._playing_row
-
-    def set_current_index(self, index: int) -> None:
-        self.list.setCurrentRow(index)
 
     def prev_file(self) -> str | None:
         if self._playing_row > 0:
@@ -135,13 +136,21 @@ class PlaylistPanel(QWidget):
         return None
 
     def remove_selected(self) -> None:
+        """删除选中行。
+
+        播放真值同步偏移：删掉的行在播放行之前则前移；正在播放的行被删则
+        _playing_row = -1（文件继续播，但退出列表导航，prev/next 无目标）。
+        """
+        original = self._playing_row
+        playing = original
         for item in self.list.selectedItems():
             row = self.list.row(item)
             self.list.takeItem(row)
-            if row < self._playing_row:
-                self._playing_row -= 1
-            elif row == self._playing_row:
-                self._playing_row = -1
+            if row == original:
+                playing = -1
+            elif original >= 0 and row < original:
+                playing -= 1
+        self._playing_row = playing
         self._update_empty_state()
 
     # ── 主题 ──
