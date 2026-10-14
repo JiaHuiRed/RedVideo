@@ -1,5 +1,6 @@
 """RedVideo 主窗口 — 无框 + 缩放 + 毛玻璃 + 主题切换"""
 
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -30,6 +31,30 @@ def _base() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys._MEIPASS)
     return Path(__file__).resolve().parent.parent
+
+
+def _same_path(a: str, b: str) -> bool:
+    """规范化后比较路径：大小写/分隔符/冗余段差异视为同一文件。"""
+    return (os.path.normcase(os.path.normpath(a))
+            == os.path.normcase(os.path.normpath(b)))
+
+
+def _resume_position(state: dict, path: str) -> float | None:
+    """续播点决策（RV-002）：仅当 state 记忆的就是 path 本身、且未看到结尾才恢复。
+
+    显式打开的文件即使与 last_file 不同也返回 None——不继承旧媒体的进度。
+    """
+    last_file = state.get("last_file")
+    if not isinstance(last_file, str) or not _same_path(last_file, path):
+        return None
+    pos = state.get("last_position")
+    if isinstance(pos, bool) or not isinstance(pos, (int, float)) or pos <= 0:
+        return None
+    duration = state.get("last_duration")
+    if (isinstance(duration, (int, float)) and not isinstance(duration, bool)
+            and duration > 0 and pos >= duration - 2):
+        return None  # 接近 EOF 视为看完，从头播
+    return float(pos)
 
 
 VERSION = "0.5.2"
@@ -134,29 +159,39 @@ class MainWindow(QMainWindow):
             self._loop_mode = state["loop_mode"]
             for name, act in self._loop_actions.items():
                 act.setChecked(name == self._loop_mode)
-        # 打开即播上次
-        if self._startup_files is None and state.get("last_file"):
+        # 区分为「恢复上次会话」（无参启动）与「显式打开」（文件关联/传入路径）：
+        # 只有前者才恢复 last_file 的进度，显式打开一律从头播（RV-002）
+        restoring = self._startup_files is None
+        if restoring and state.get("last_file"):
             self._startup_files = [state["last_file"]]
         if self._startup_files:
             if state.get("playlist_files"):
                 self.playlist.add_files(state["playlist_files"])
             else:
                 self.playlist.add_files(self._startup_files)
-            self._play_file(self._startup_files[0])
-            if state.get("last_position"):
-                self._restore_position(state["last_position"])
-            if state.get("playlist_index") is not None:
-                self.playlist.set_current_index(state["playlist_index"])
+            target = self._startup_files[0]
+            resume = _resume_position(state, target) if restoring else None
+            if resume is not None:
+                # 先挂一次性回调再开播，避免 file_loaded 抢在连接之前触发
+                self._restore_position(target, resume)
+            # _play_file → mark_playing 已统一设置播放真值/选中行/红点，
+            # 不再事后 set_current_index 假装恢复（RV-003）
+            self._play_file(target)
 
-    def _restore_position(self, pos: float) -> None:
-        """file_loaded 后一次性恢复断点（固定延时对慢盘/网络文件不可靠）。"""
+    def _restore_position(self, path: str, pos: float) -> None:
+        """file_loaded 后一次性恢复断点（固定延时对慢盘/网络文件不可靠）。
 
-        def _seek(_path: str) -> None:
-            self.mpv.seek(pos)
+        回调绑定预期路径：加载的文件与目标不符（快速切换/重复事件）不跳转，
+        不把上一个文件的进度套到新文件上（RV-002）。
+        """
+
+        def _seek(loaded: str) -> None:
             try:
                 self.mpv.file_loaded.disconnect(_seek)
             except TypeError:
                 pass
+            if _same_path(loaded, path):
+                self.mpv.seek(pos)
 
         self.mpv.file_loaded.connect(_seek)
 
@@ -674,6 +709,7 @@ class MainWindow(QMainWindow):
             "theme": self._theme,
             "last_file": self.mpv.filename,
             "last_position": pos,
+            "last_duration": self._duration,  # 接近 EOF 的续播点下次从头播
             "playlist_files": [self.playlist.list.item(i).data(Qt.ItemDataRole.UserRole)
                                for i in range(self.playlist.list.count())
                                if self.playlist.list.item(i)],

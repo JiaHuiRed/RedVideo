@@ -68,5 +68,30 @@ class TestRestorePositionCallback:
         fake.file_loaded.emit("/v/B.mp4")  # 快速切文件：不得套 A 的进度
         assert fake.seeked is None
 
+        # 一次性回调已被消费：之后 A 再加载也不补跳（恢复时机已过）
         fake.file_loaded.emit("/v/A.mp4")
+        assert fake.seeked is None
+
+    def test_seeks_matching_path(self, qapp):
+        from PyQt6.QtCore import QObject, pyqtSignal
+
+        class FakeMPV(QObject):
+            file_loaded = pyqtSignal(str)
+
+            def __init__(self):
+                super().__init__()
+                self.seeked = None
+
+            def seek(self, pos):
+                self.seeked = pos
+
+        w = win_mod.MainWindow.__new__(win_mod.MainWindow)
+        fake = FakeMPV()
+        w.mpv = fake
+        w._restore_position("/v/A.mp4", 300.0)
+
+        fake.file_loaded.emit("/v/A.mp4")
+        assert fake.seeked == 300.0
+
+        fake.file_loaded.emit("/v/A.mp4")  # 重复事件不二次跳转
         assert fake.seeked == 300.0
