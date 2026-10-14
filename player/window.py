@@ -22,7 +22,7 @@ from player.icons import IconButton, palette_for
 from player.shortcuts import Shortcuts
 from player.titlebar import Titlebar, TITLEBAR_HEIGHT
 from player.windows_effects import enable_acrylic
-from player.state import load as load_state, save as save_state
+from player.state import load as load_state, save as save_state, sanitize
 
 RESIZE_MARGIN = 6
 
@@ -141,8 +141,8 @@ class MainWindow(QMainWindow):
 
         Shortcuts(self)
 
-        # 恢复播放记忆
-        state = load_state()
+        # 恢复播放记忆（状态文件是不可信输入，逐字段校验后再用 — RV-006）
+        state = sanitize(load_state())
         self._last_dir = state.get("last_dir", "")
         if state.get("geometry"):
             self.restoreGeometry(bytes.fromhex(state["geometry"]))
