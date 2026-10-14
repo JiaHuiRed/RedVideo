@@ -2,11 +2,11 @@
 chcp 65001 >nul
 title RedVideo Build
 
-REM === Install PyInstaller ===
+REM === Install PyInstaller (pinned for reproducible builds) ===
 where pyinstaller >nul 2>&1
 if %errorlevel% neq 0 (
     echo [..] Installing PyInstaller...
-    pip install pyinstaller
+    pip install pyinstaller==6.20.0
     echo.
 )
 

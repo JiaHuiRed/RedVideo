@@ -57,7 +57,7 @@ def _resume_position(state: dict, path: str) -> float | None:
     return float(pos)
 
 
-VERSION = "0.5.2"
+VERSION = "0.5.3"
 
 THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}

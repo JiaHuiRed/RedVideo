@@ -2,7 +2,7 @@
 
 > **Windows desktop video player** · Powered by libmpv · macOS-inspired UI · Zero quality loss
 
-[![Version](https://badgen.net/badge/Version/0.5.2/red)](CHANGELOG.md)
+[![Version](https://badgen.net/badge/Version/0.5.3/red)](CHANGELOG.md)
 [![Platform](https://badgen.net/badge/Platform/Windows%2010%2F11/blue)](https://python.org)
 [![Python](https://badgen.net/badge/Python/3.11/3776ab)](https://python.org)
 [![PyQt6](https://badgen.net/badge/PyQt6/6.11/green)](https://pypi.org/project/PyQt6/)
