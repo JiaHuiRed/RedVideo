@@ -133,10 +133,10 @@ class MpvWidget(QWidget):
         self._mpv.volume = max(0, min(100, vol))
 
     def volume_up(self, step: int = 5) -> None:
-        self.set_volume(self._mpv.volume + step)
+        self.set_volume(self.volume + step)
 
     def volume_down(self, step: int = 5) -> None:
-        self.set_volume(self._mpv.volume - step)
+        self.set_volume(self.volume - step)
 
     def toggle_mute(self) -> None:
         self._mpv.mute = not self._mpv.mute
@@ -173,7 +173,11 @@ class MpvWidget(QWidget):
 
     @property
     def volume(self) -> int:
-        return self._mpv.volume or 100
+        # 0 / 0.0 是合法零音量，只有 None（mpv 未就绪）才回退默认值
+        value = self._mpv.volume
+        if value is None:
+            return 100
+        return max(0, min(100, int(value)))
 
     @property
     def is_muted(self) -> bool:
