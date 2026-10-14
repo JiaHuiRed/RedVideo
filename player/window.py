@@ -512,7 +512,8 @@ class MainWindow(QMainWindow):
         self.titlebar.set_title(f"RedVideo — {Path(path).name}")
 
     def _on_duration_changed(self, dur: float):
-        self._duration = dur
+        if dur > 0:
+            self._duration = dur  # EOF 后 mpv 的归零 tick 不覆盖有效时长
         self.controls.update_time(self.mpv.time_pos, dur)
 
     def prev_file(self):

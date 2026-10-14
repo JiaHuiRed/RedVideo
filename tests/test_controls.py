@@ -45,3 +45,29 @@ def test_seek_after_finish_restores_live_updates(bar):
     assert bar._finished is False
     bar._flush_time()
     assert bar.slider.value() == int(1.0 / 2.816 * 10000)
+
+
+def test_duration_cache_ignores_eof_zero(qapp):
+    """EOF 时 mpv 先归零 duration：缓存不能被刷掉，否则 set_finished 拿到 0。"""
+    from player.window import MainWindow
+
+    class FakeControls:
+        def __init__(self):
+            self.calls = []
+
+        def update_time(self, pos, dur):
+            self.calls.append((pos, dur))
+
+    class FakeMPV:
+        time_pos = 0.0
+
+    w = MainWindow.__new__(MainWindow)
+    w._duration = 0.0
+    w.mpv = FakeMPV()
+    fc = FakeControls()
+    w.controls = fc
+
+    w._on_duration_changed(2.666)
+    w._on_duration_changed(0.0)  # EOF 归零 tick
+    assert w._duration == 2.666  # 缓存保留最后有效时长
+    assert fc.calls == [(0.0, 2.666), (0.0, 0.0)]  # 归零 tick 仍下发给控件防护
