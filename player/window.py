@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout,
     QFileDialog, QSplitter, QMenu, QMessageBox, QApplication,
 )
-from PyQt6.QtCore import Qt, QRect, QPoint, QTimer
+from PyQt6.QtCore import Qt, QRect, QPoint, QTimer, QEvent
 from PyQt6.QtGui import (
     QDragEnterEvent, QDropEvent, QAction, QActionGroup, QMouseEvent, QCursor,
     QIcon,
@@ -29,6 +29,8 @@ RESIZE_MARGIN = 6
 
 # 防抖落盘间隔：播放中周期保存，崩溃/被杀最多丢这个时间段的进度
 AUTOSAVE_INTERVAL_MS = 15_000
+# 全屏播放鼠标静止多久后进入沉浸态（隐藏控制栏/标题栏/光标）
+IMMERSIVE_IDLE_MS = 2500
 
 
 def _base() -> Path:
@@ -130,6 +132,13 @@ class MainWindow(QMainWindow):
         self._click_timer = QTimer(self)
         self._click_timer.setSingleShot(True)
         self._click_timer.timeout.connect(self.toggle_play)
+
+        # 全屏沉浸态：鼠标静止后隐藏 控制栏/标题栏/光标（仅全屏，见 _immersive_eligible）
+        self._immersive = False
+        self._immersive_timer = QTimer(self)
+        self._immersive_timer.setSingleShot(True)
+        self._immersive_timer.timeout.connect(self._enter_immersive)
+        QApplication.instance().installEventFilter(self)
 
         apply_theme(self._theme)
 
@@ -444,7 +453,7 @@ class MainWindow(QMainWindow):
 
         m = self.mpv
         m.file_loaded.connect(self._on_file_loaded)
-        m.paused_changed.connect(c.set_paused)
+        m.paused_changed.connect(self._on_paused_changed)
         m.position_changed.connect(lambda pos: c.update_time(pos, self._duration))
         m.duration_changed.connect(self._on_duration_changed)
         m.finished.connect(self._on_playback_finished)
@@ -477,6 +486,64 @@ class MainWindow(QMainWindow):
             m = 0 if (self.isMaximized() or self.isFullScreen()) else 1
             self._root_layout.setContentsMargins(m, 0, m, m)
             self._update_cursor(self.mapFromGlobal(QCursor.pos()))
+
+    # ── 全屏沉浸（自动隐藏） ──
+
+    def eventFilter(self, obj, event):
+        """应用级活动探测：本窗口内任何鼠标移动/点击/滚轮都重排沉浸计时。"""
+        if event is not None and obj is not None:
+            t = event.type()
+            if (t in (QEvent.Type.MouseMove, QEvent.Type.MouseButtonPress,
+                      QEvent.Type.MouseButtonRelease, QEvent.Type.Wheel)
+                    and isinstance(obj, QWidget)
+                    and (obj is self or self.isAncestorOf(obj))):
+                self._poke_immersive()
+        return super().eventFilter(obj, event)
+
+    def _poke_immersive(self) -> None:
+        """用户活动：退出沉浸态并把空闲计时重新计满。"""
+        if self._immersive:
+            self._exit_immersive()
+        self._immersive_timer.start(IMMERSIVE_IDLE_MS)
+
+    def _immersive_eligible(self) -> bool:
+        """只在全屏播放中隐藏：窗口模式保持固定版式，暂停/最小化不藏。"""
+        return (self.isFullScreen() and bool(self.mpv.filename)
+                and not self.mpv.is_paused and not self.isMinimized())
+
+    def _enter_immersive(self) -> None:
+        if self._immersive or not self._immersive_eligible():
+            return
+        if QApplication.activePopupWidget() is not None:
+            self._immersive_timer.start(IMMERSIVE_IDLE_MS)  # 菜单开着，推迟
+            return
+        # 光标悬停在控制栏/标题栏上时不藏：控件不能在光标下消失
+        w = QApplication.widgetAt(QCursor.pos())
+        if (w is not None
+                and (w is self.controls or self.controls.isAncestorOf(w)
+                     or w is self.titlebar or self.titlebar.isAncestorOf(w))):
+            self._immersive_timer.start(IMMERSIVE_IDLE_MS)
+            return
+        self._immersive = True
+        self._update_chrome()
+        self.mpv.setCursor(Qt.CursorShape.BlankCursor)
+
+    def _exit_immersive(self) -> None:
+        if not self._immersive:
+            return
+        self._immersive = False
+        self._update_chrome()
+        self.mpv.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def _update_chrome(self) -> None:
+        """按 全屏/沉浸/播放列表开关 推导标题栏与控制栏可见性（单一推导点）。"""
+        self.titlebar.setVisible(not self.isFullScreen() and not self._immersive)
+        self.controls.setVisible(not self._immersive)
+
+    def _on_paused_changed(self, paused: bool) -> None:
+        self.controls.set_paused(paused)
+        if paused:
+            self._poke_immersive()  # 暂停即唤出控制栏
 
     # ── 播放控制 ──
 
@@ -540,6 +607,7 @@ class MainWindow(QMainWindow):
             self._play_file(path)
 
     def _on_playback_finished(self):
+        self._poke_immersive()  # EOF 唤出控制栏（连播下一曲时空闲后重新隐藏）
         # EOF 时把进度条/时间钉在终点（mpv 末帧 time-pos 略小于 duration）
         self.controls.set_finished(self._duration)
         if self._loop_mode == "one":
@@ -655,6 +723,7 @@ class MainWindow(QMainWindow):
         self._osd(f"音量 {self.mpv.volume}%")
 
     def _osd(self, text: str, ms: int = 800) -> None:
+        self._poke_immersive()  # 键盘操作（快进/音量/倍速等）也算用户活动
         self.mpv.show_osd(text, ms)
 
     def toggle_fullscreen(self):
@@ -668,15 +737,15 @@ class MainWindow(QMainWindow):
 
     def _enter_fullscreen(self):
         self.showFullScreen()
-        self.titlebar.setVisible(False)
         self.playlist.setVisible(False)  # 全屏沉浸；退出时按原状态恢复
+        self._update_chrome()
 
     def _exit_fullscreen(self):
         if not self.isFullScreen():
             return
         self.showNormal()
-        self.titlebar.setVisible(True)
         self.playlist.setVisible(self._playlist_visible)
+        self._update_chrome()
 
     def toggle_playlist(self):
         self._playlist_visible = not self._playlist_visible
@@ -741,6 +810,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self._save_timer.stop()
+        QApplication.instance().removeEventFilter(self)
         save_state(self._collect_state())
         self.mpv.cleanup()
         super().closeEvent(event)

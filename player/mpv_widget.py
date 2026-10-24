@@ -50,6 +50,9 @@ class MpvWidget(QWidget):
             cache=True,
         )
 
+        # 悬停即收鼠标移动（不按键也发）：全屏沉浸的空闲计时靠它感知活动
+        self.setMouseTracking(True)
+
         self._mpv.observe_property("time-pos", lambda _n, v: v is not None and self.position_changed.emit(float(v)))
         self._mpv.observe_property("duration", lambda _n, v: v is not None and self.duration_changed.emit(float(v)))
         self._mpv.observe_property("pause", lambda _n, v: self.paused_changed.emit(bool(v)))
