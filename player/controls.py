@@ -2,11 +2,15 @@
 
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QSlider, QLabel,
-    QPushButton, QStyle, QStyleOptionSlider,
+    QPushButton, QStyle, QStyleOptionSlider, QMenu, QToolTip,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QTimer
+from PyQt6.QtCore import Qt, pyqtSignal, QTimer, QPoint
+from PyQt6.QtGui import QAction, QActionGroup
 
 from .icons import IconButton, palette_for
+
+# 倍速菜单档位（键盘 [/] 仍可 0.1 微调，边界同 set_speed 钳制 0.5–2.0）
+SPEED_PRESETS = (0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0)
 
 
 def _fmt(seconds: float) -> str:
@@ -21,29 +25,58 @@ def _fmt(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
+def _fmt_speed(v: float) -> str:
+    """倍速显示统一格式：0.5 → '0.5x'，0.75 → '0.75x'，1.0 → '1.0x'。"""
+    s = f"{v:.2f}".rstrip("0")
+    if s.endswith("."):
+        s += "0"
+    return s + "x"
+
+
 class SeekSlider(QSlider):
-    """支持单击跳转的进度条 — 点击凹槽直接跳到该位置，随后可继续拖拽。
+    """支持单击跳转与悬停时间提示的进度条 — 点击凹槽直接跳到该位置，随后可继续拖拽。
 
     原生 QSlider 点击凹槽只走一个 page step 且不触发 sliderPressed/Released，
     导致单击进度条无法 seek；这里在按下时把值设到点击处，把手会落到光标下，
     之后的按下/拖拽/释放全部走原生流程。
     """
 
+    def __init__(self, orientation, parent=None):
+        super().__init__(orientation, parent)
+        self._total = 0.0  # 悬停提示换算用总时长（仅正值更新）
+        self.setMouseTracking(True)
+
+    def set_total(self, seconds: float) -> None:
+        if seconds > 0:
+            self._total = seconds
+
+    def _value_at(self, x: int) -> int:
+        """光标横坐标 → 滑块值（按凹槽几何换算，跳过手柄宽度更贴合点击处）。"""
+        opt = QStyleOptionSlider()
+        self.initStyleOption(opt)
+        st = self.style()
+        groove = st.subControlRect(QStyle.ComplexControl.CC_Slider, opt,
+                                   QStyle.SubControl.SC_SliderGroove, self)
+        handle = st.subControlRect(QStyle.ComplexControl.CC_Slider, opt,
+                                   QStyle.SubControl.SC_SliderHandle, self)
+        if groove.isValid() and groove.width() > handle.width():
+            return QStyle.sliderValueFromPosition(
+                self.minimum(), self.maximum(),
+                x - groove.x() - handle.width() // 2,
+                groove.width() - handle.width())
+        return self.value()
+
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
-            opt = QStyleOptionSlider()
-            self.initStyleOption(opt)
-            st = self.style()
-            groove = st.subControlRect(QStyle.ComplexControl.CC_Slider, opt,
-                                       QStyle.SubControl.SC_SliderGroove, self)
-            handle = st.subControlRect(QStyle.ComplexControl.CC_Slider, opt,
-                                       QStyle.SubControl.SC_SliderHandle, self)
-            if groove.isValid() and groove.width() > handle.width():
-                self.setValue(QStyle.sliderValueFromPosition(
-                    self.minimum(), self.maximum(),
-                    int(event.position().x()) - groove.x() - handle.width() // 2,
-                    groove.width() - handle.width()))
+            self.setValue(self._value_at(int(event.position().x())))
         super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event) -> None:
+        if self._total > 0:
+            ratio = self._value_at(int(event.position().x())) / self.maximum()
+            pos = max(0.0, min(1.0, ratio)) * self._total
+            QToolTip.showText(event.globalPosition().toPoint(), _fmt(pos), self)
+        super().mouseMoveEvent(event)
 
 
 class ControlsBar(QWidget):
@@ -138,10 +171,10 @@ class ControlsBar(QWidget):
         layout.addSpacing(10)  # ── 音量 | 附加 ──
 
         # ── 倍速 ──
-        self.btn_speed = QPushButton("1.0x")
+        self.btn_speed = QPushButton(_fmt_speed(1.0))
         self.btn_speed.setObjectName("BtnSpeed")
         self.btn_speed.setFixedSize(42, 28)
-        self.btn_speed.clicked.connect(self._cycle_speed)
+        self.btn_speed.clicked.connect(self._show_speed_menu)
         layout.addWidget(self.btn_speed)
 
         # ── 置顶（激活时图标转主题强调色，QSS 加底色）──
@@ -170,6 +203,7 @@ class ControlsBar(QWidget):
 
     def update_time(self, pos: float, duration: float) -> None:
         self._duration = duration
+        self.slider.set_total(duration)
         if self._preview_mode:
             return
         if self._finished and duration <= 0:
@@ -182,7 +216,7 @@ class ControlsBar(QWidget):
 
     def _flush_time(self) -> None:
         pos, duration = self._pending_time
-        self.lbl_time.setText(f"{_fmt(pos)} / {_fmt(duration)} · {self._speed:.1f}x")
+        self.lbl_time.setText(f"{_fmt(pos)} / {_fmt(duration)} · {_fmt_speed(self._speed)}")
         # 进度条也并入 100ms 节流，避免短视频下每帧重绘
         if duration > 0 and not self._slider_dragging:
             self.slider.setValue(int(min(1.0, pos / duration) * 10000))
@@ -201,9 +235,10 @@ class ControlsBar(QWidget):
         self._duration = duration
         self._pending_time = (duration, duration)
         self._finished = True
+        self.slider.set_total(duration)
         self.slider.setValue(self.slider.maximum())
         self.lbl_time.setText(
-            f"{_fmt(duration)} / {_fmt(duration)} · {self._speed:.1f}x")
+            f"{_fmt(duration)} / {_fmt(duration)} · {_fmt_speed(self._speed)}")
 
     def set_volume(self, vol: int) -> None:
         # 程序化设值不回发 volume_changed：回环会经窗口连接反向再写一次 mpv
@@ -216,7 +251,7 @@ class ControlsBar(QWidget):
 
     def set_speed(self, speed: float) -> None:
         self._speed = max(0.5, min(2.0, speed))
-        self.btn_speed.setText(f"{self._speed:.1f}x")
+        self.btn_speed.setText(_fmt_speed(self._speed))
         self.speed_changed.emit(self._speed)
 
     def set_always_on_top(self, checked: bool) -> None:
@@ -230,11 +265,24 @@ class ControlsBar(QWidget):
                     self.btn_pin, self.btn_fs):
             btn.set_colors(pal["base"], pal["hover"], pal["accent"])
 
-    def _cycle_speed(self):
-        nxt = round(self._speed + 0.1, 1)
-        if nxt > 2.0:
-            nxt = 0.5
-        self.set_speed(nxt)
+    def _build_speed_menu(self) -> QMenu:
+        menu = QMenu(self)
+        group = QActionGroup(menu)
+        group.setExclusive(True)
+        for s in SPEED_PRESETS:
+            act = QAction(_fmt_speed(s), menu)
+            act.setCheckable(True)
+            act.setChecked(abs(s - self._speed) < 1e-6)
+            act.triggered.connect(lambda checked, v=s: self.set_speed(v))
+            group.addAction(act)
+            menu.addAction(act)
+        return menu
+
+    def _show_speed_menu(self):
+        """倍速菜单在按钮上方弹出（控制栏贴窗口底，向下会出屏）。"""
+        menu = self._build_speed_menu()
+        pos = self.btn_speed.mapToGlobal(QPoint(0, -menu.sizeHint().height() - 4))
+        menu.exec(pos)
 
     # ── 内部 ──
 
@@ -243,7 +291,8 @@ class ControlsBar(QWidget):
             return
         self._preview_mode = True
         preview = (value / 10000.0) * self._duration
-        self.lbl_time.setText(f"{_fmt(preview)} / {_fmt(self._duration)} · {self._speed:.1f}x")
+        self.lbl_time.setText(
+            f"{_fmt(preview)} / {_fmt(self._duration)} · {_fmt_speed(self._speed)}")
 
     def _on_slider_released(self):
         self._slider_dragging = False

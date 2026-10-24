@@ -142,7 +142,8 @@ class MpvWidget(QWidget):
         self._mpv.mute = not self._mpv.mute
 
     def set_speed(self, speed: float) -> None:
-        self._mpv.speed = max(0.1, speed)
+        # 播放器统一速度范围 0.5–2.0：控制栏显示、菜单档位、键盘微调同此边界
+        self._mpv.speed = max(0.5, min(2.0, speed))
 
     def show_osd(self, text: str, duration_ms: int = 800) -> None:
         """在画面上短暂显示 OSD 文本（mpv show-text，全屏下也可见）。"""
