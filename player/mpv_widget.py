@@ -2,9 +2,15 @@
 
 import os
 import ctypes
+import time
 
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtCore import Qt, QPoint, pyqtSignal
+
+# time-pos 观察以帧率触发（~60Hz）：跨线程信号投递限到 ~12/s。
+# UI 端本就 100ms 节流只重绘最新值，这里省掉的是每帧的信号投递与队列开销。
+_POS_MIN_INTERVAL = 0.08
+_POS_JUMP = 1.0  # 跳变超过该值视为 seek 落点，绕过节流立即投递
 
 # 优先加载 bundled bin/ 下的 libmpv
 _bin_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bin")
@@ -53,7 +59,7 @@ class MpvWidget(QWidget):
         # 悬停即收鼠标移动（不按键也发）：全屏沉浸的空闲计时靠它感知活动
         self.setMouseTracking(True)
 
-        self._mpv.observe_property("time-pos", lambda _n, v: v is not None and self.position_changed.emit(float(v)))
+        self._mpv.observe_property("time-pos", self._on_time_pos)
         self._mpv.observe_property("duration", lambda _n, v: v is not None and self.duration_changed.emit(float(v)))
         self._mpv.observe_property("pause", lambda _n, v: self.paused_changed.emit(bool(v)))
         self._mpv.observe_property("path", lambda _n, v: v is not None and self.file_loaded.emit(str(v)))
@@ -61,6 +67,26 @@ class MpvWidget(QWidget):
         self._mpv.observe_property("eof-reached", lambda _n, v: v and self.finished.emit())
 
         self._press_pos: QPoint | None = None
+        self._last_pos = 0.0        # 上一次投递的位置（节流与跳变判定）
+        self._last_pos_emit = 0.0   # 上一次投递的时刻（monotonic 秒）
+
+    def _on_time_pos(self, _name: str, value) -> None:
+        """mpv 事件线程回调：窗口内丢弃中间帧，seek 落点立即投递。"""
+        if value is None:
+            return
+        v = float(value)
+        now = time.monotonic()
+        if not self._should_emit_pos(v, now):
+            return
+        self._last_pos_emit = now
+        self._last_pos = v
+        self.position_changed.emit(v)
+
+    def _should_emit_pos(self, value: float, now: float) -> bool:
+        """节流决策（纯逻辑，便于离屏单测）。"""
+        if abs(value - self._last_pos) > _POS_JUMP:
+            return True
+        return now - self._last_pos_emit >= _POS_MIN_INTERVAL
 
     # ── 鼠标交互 ──
 

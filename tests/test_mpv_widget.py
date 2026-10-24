@@ -61,3 +61,51 @@ class TestVolumeControl:
         w = _widget(volume=3)
         w.volume_down()
         assert w.volume == 0
+
+
+# ── 0.6.0：time-pos 跨线程信号节流 ──
+
+from player.mpv_widget import _POS_MIN_INTERVAL, _POS_JUMP
+
+
+def _throttle_widget() -> MpvWidget:
+    w = MpvWidget.__new__(MpvWidget)
+    w._last_pos = 0.0
+    w._last_pos_emit = 0.0
+    return w
+
+
+class TestPosThrottle:
+    def test_first_tick_immediate(self):
+        w = _throttle_widget()
+        assert w._should_emit_pos(5.0, now=0.01) is True  # 跳变（首帧）立即投递
+
+    def test_frame_within_window_dropped(self):
+        w = _throttle_widget()
+        w._last_pos, w._last_pos_emit = 10.0, 100.0
+        assert w._should_emit_pos(10.05, now=100.0 + _POS_MIN_INTERVAL / 2) is False
+
+    def test_frame_after_window_passes(self):
+        w = _throttle_widget()
+        w._last_pos, w._last_pos_emit = 10.0, 100.0
+        assert w._should_emit_pos(10.16, now=100.0 + _POS_MIN_INTERVAL * 2) is True
+
+    def test_seek_jump_bypasses_window(self):
+        w = _throttle_widget()
+        w._last_pos, w._last_pos_emit = 10.0, 100.0
+        assert (w._should_emit_pos(10.0 + _POS_JUMP + 1, now=100.0 + 0.01)
+                is True)  # seek 落点不等窗口
+
+    def test_jump_threshold_is_exact(self):
+        w = _throttle_widget()
+        w._last_pos, w._last_pos_emit = 10.0, 100.0
+        assert w._should_emit_pos(10.0 + _POS_JUMP, now=100.0 + 0.01) is False
+
+
+class TestSpeedClamp:
+    def test_unified_range(self):
+        w = _widget()
+        w.set_speed(5.0)
+        assert w._mpv.speed == 2.0
+        w.set_speed(0.1)
+        assert w._mpv.speed == 0.5
