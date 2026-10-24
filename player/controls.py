@@ -206,7 +206,10 @@ class ControlsBar(QWidget):
             f"{_fmt(duration)} / {_fmt(duration)} · {self._speed:.1f}x")
 
     def set_volume(self, vol: int) -> None:
+        # 程序化设值不回发 volume_changed：回环会经窗口连接反向再写一次 mpv
+        self.vol_slider.blockSignals(True)
         self.vol_slider.setValue(vol)
+        self.vol_slider.blockSignals(False)
 
     def set_muted(self, muted: bool) -> None:
         self.btn_mute.set_icon_name("volume_muted" if muted else "volume")

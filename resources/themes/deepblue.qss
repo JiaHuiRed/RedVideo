@@ -83,6 +83,12 @@ QMenu::separator { height: 1px; background: rgba(100,180,255,0.06); margin: 4px 
 }
 #BtnClear:hover { background: rgba(100,180,255,0.08); color: rgba(180,210,240,0.85); }
 #BtnClear:disabled { border-color: rgba(100,180,255,0.06); color: rgba(180,210,240,0.18); }
+#PlaylistFilter {
+    background: rgba(100,180,255,0.06); border: 1px solid rgba(100,180,255,0.12);
+    border-radius: 4px; color: rgba(180,210,240,0.75); font-size: 11px; padding: 3px 8px;
+}
+#PlaylistFilter:focus { border-color: rgba(58,123,213,0.6); background: rgba(100,180,255,0.09); }
+#PlaylistCount { color: rgba(180,210,240,0.3); font-size: 11px; }
 #PlaylistEmptyText { color: rgba(180,210,240,0.3); font-size: 12px; }
 #PlaylistList { background: transparent; color: rgba(180,210,240,0.75); border: none; font-size: 12px; outline: none; }
 #PlaylistList::item { padding: 6px 12px; border-bottom: 1px solid rgba(100,180,255,0.03); }
