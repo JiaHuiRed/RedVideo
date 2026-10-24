@@ -21,9 +21,8 @@ from player.playlist import PlaylistPanel
 from player.media_files import MEDIA_FILTER, expand_media
 from player.icons import IconButton, palette_for
 from player.shortcuts import Shortcuts
-from player.titlebar import Titlebar, TITLEBAR_HEIGHT
-from player.windows_effects import enable_acrylic
-from player import native_frame
+from player.titlebar import Titlebar
+from player.windows_effects import disable_acrylic, enable_acrylic
 from player.state import load as load_state, save as save_state, sanitize
 
 RESIZE_MARGIN = 6
@@ -129,10 +128,8 @@ class MainWindow(QMainWindow):
         # 双击标题栏最大化
         self._maximized_before_full = self.isMaximized()
 
-        # 原生无边框（WM_NCHITTEST）：应用成功则缩放/移动走系统路径，失败回退手动缩放
-        self._native_frame_ready = False
-        self._native_caption_height = TITLEBAR_HEIGHT
-        self._sizemove_acrylic_off = False
+        # 缩放期间临时关闭毛玻璃（与标题栏拖动同策略），结束时恢复
+        self._resizing_acrylic_off = False
 
         # 单击画面延迟判定：双击全屏时取消单击的暂停/恢复
         self._click_timer = QTimer(self)
@@ -252,13 +249,16 @@ class MainWindow(QMainWindow):
     def mousePressEvent(self, event: QMouseEvent | None) -> None:
         if event is None:
             return
-        if event.button() == Qt.MouseButton.LeftButton and not self._native_frame_ready:
+        if event.button() == Qt.MouseButton.LeftButton:
             dir = self._get_resize_dir(event.pos())
             if dir:
                 self._resizing = True
                 self._resize_dir = dir
                 self._drag_pos = event.globalPosition().toPoint()
                 self._start_geo = QRect(self.geometry())
+                # 毛玻璃实时重算是无边框缩放卡顿的大头：缩放期间临时关闭
+                if self._acrylic_applied and not self._resizing_acrylic_off:
+                    self._resizing_acrylic_off = disable_acrylic(int(self.winId()))
                 event.accept()
                 return
         super().mousePressEvent(event)
@@ -281,8 +281,7 @@ class MainWindow(QMainWindow):
                 self.setGeometry(geo)
             event.accept()
             return
-        if not self._native_frame_ready:
-            self._update_cursor(event.pos())  # 原生路径下光标由系统按 HT* 给出
+        self._update_cursor(event.pos())
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent | None) -> None:
@@ -293,6 +292,9 @@ class MainWindow(QMainWindow):
             self._resize_dir = set()
             self._drag_pos = None
             self._start_geo = None
+            if self._resizing_acrylic_off:
+                enable_acrylic(int(self.winId()), dark_tint=self._theme != "day")
+                self._resizing_acrylic_off = False
             event.accept()
             return
         super().mouseReleaseEvent(event)
@@ -476,21 +478,10 @@ class MainWindow(QMainWindow):
 
     def showEvent(self, event):
         super().showEvent(event)
-        if not self._native_frame_ready:
-            # 原生帧要先于毛玻璃：样式位变化会重置 DWM backdrop
-            self._native_frame_ready = native_frame.apply(int(self.winId()))
         if not self._acrylic_applied:
             self._acrylic_applied = enable_acrylic(
                 int(self.winId()), dark_tint=self._theme != "day",
             )
-
-    def nativeEvent(self, eventType, message):
-        if (self._native_frame_ready
-                and eventType == b"windows_generic_MSG"):
-            result = native_frame.handle(self, int(message))
-            if result is not None:
-                return True, result
-        return super().nativeEvent(eventType, message)
 
     def _toggle_maximize(self):
         if self.isMaximized():
@@ -775,8 +766,7 @@ class MainWindow(QMainWindow):
             flags |= Qt.WindowType.WindowStaysOnTopHint
         else:
             flags &= ~Qt.WindowType.WindowStaysOnTopHint
-        self.setWindowFlags(flags)  # 重建原生窗口：帧/毛玻璃标记随之失效
-        self._native_frame_ready = False
+        self.setWindowFlags(flags)  # 重建原生窗口：毛玻璃标记随之失效
         self._acrylic_applied = False
         self.show()
 
