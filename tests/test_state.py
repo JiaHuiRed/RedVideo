@@ -13,6 +13,8 @@ from player.state import load, sanitize, save
 def state_file(tmp_path, monkeypatch):
     path = tmp_path / "state.json"
     monkeypatch.setattr(state_mod, "STATE_PATH", path)
+    # 仓库/安装目录可能残留旧版 state.json（真实 _LEGACY_PATH），一并隔离
+    monkeypatch.setattr(state_mod, "_LEGACY_PATH", tmp_path / "legacy.json")
     return path
 
 
@@ -86,6 +88,14 @@ class TestSanitize:
         assert sanitize({"playlist_index": 2})["playlist_index"] == 2
         assert sanitize({"playlist_index": -9})["playlist_index"] == -1
         assert "playlist_index" not in sanitize({"playlist_index": "x"})
+
+    def test_splitter_sizes(self):
+        assert sanitize({"splitter_sizes": [1020, 260]})["splitter_sizes"] == [1020, 260]
+        assert sanitize({"splitter_sizes": [1020.0, 260.0]})["splitter_sizes"] == [1020, 260]
+        assert "splitter_sizes" not in sanitize({"splitter_sizes": [1020]})
+        assert "splitter_sizes" not in sanitize({"splitter_sizes": [0, 260]})
+        assert "splitter_sizes" not in sanitize({"splitter_sizes": [True, 260]})
+        assert "splitter_sizes" not in sanitize({"splitter_sizes": "wide"})
 
     def test_positions(self):
         out = sanitize({"last_position": 12.5, "last_duration": 600.0})

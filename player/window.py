@@ -17,7 +17,8 @@ from PyQt6.QtGui import (
 
 from player.mpv_widget import MpvWidget
 from player.controls import ControlsBar
-from player.playlist import PlaylistPanel, SUB_EXTS
+from player.playlist import PlaylistPanel
+from player.media_files import MEDIA_FILTER, expand_media
 from player.icons import IconButton, palette_for
 from player.shortcuts import Shortcuts
 from player.titlebar import Titlebar, TITLEBAR_HEIGHT
@@ -25,6 +26,9 @@ from player.windows_effects import enable_acrylic
 from player.state import load as load_state, save as save_state, sanitize
 
 RESIZE_MARGIN = 6
+
+# 防抖落盘间隔：播放中周期保存，崩溃/被杀最多丢这个时间段的进度
+AUTOSAVE_INTERVAL_MS = 15_000
 
 
 def _base() -> Path:
@@ -63,12 +67,6 @@ THEMES_DIR = _base() / "resources" / "themes"
 THEME_NAMES = {"night": "夜间", "day": "日间", "deepblue": "深蓝"}
 THEME_LIST = list(THEME_NAMES)
 
-MEDIA_EXTS = {".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm",
-              ".mp3", ".flac", ".wav", ".m4a", ".aac", ".ogg", ".opus"}
-MEDIA_FILTER = (
-    "媒体文件 (*.mp4 *.mkv *.avi *.mov *.wmv *.flv *.webm"
-    " *.mp3 *.flac *.wav *.m4a *.aac *.ogg *.opus);;所有文件 (*)"
-)
 SUB_FILTER = "字幕文件 (*.srt *.ass *.ssa *.vtt *.sub);;所有文件 (*)"
 LOOP_MODES = {"off": "播完停止", "one": "单曲循环", "all": "列表循环"}
 
@@ -146,6 +144,8 @@ class MainWindow(QMainWindow):
         self._last_dir = state.get("last_dir", "")
         if state.get("geometry"):
             self.restoreGeometry(bytes.fromhex(state["geometry"]))
+        if state.get("splitter_sizes"):
+            self.splitter.setSizes(state["splitter_sizes"])
         if state.get("volume") is not None:
             vol = int(state["volume"])  # mpv.volume 是 float，QSlider 只收 int
             self.mpv.set_volume(vol)
@@ -165,6 +165,8 @@ class MainWindow(QMainWindow):
         if restoring and state.get("last_file"):
             self._startup_files = [state["last_file"]]
         if self._startup_files:
+            self._startup_files = expand_media(self._startup_files)
+        if self._startup_files:
             if state.get("playlist_files"):
                 self.playlist.add_files(state["playlist_files"])
             else:
@@ -177,6 +179,13 @@ class MainWindow(QMainWindow):
             # _play_file → mark_playing 已统一设置播放真值/选中行/红点，
             # 不再事后 set_current_index 假装恢复（RV-003）
             self._play_file(target)
+
+        # 播放记忆防抖落盘：崩溃/被杀最多丢 AUTOSAVE_INTERVAL_MS 的进度；
+        # closeEvent 仍做最终保存
+        self._save_timer = QTimer(self)
+        self._save_timer.setInterval(AUTOSAVE_INTERVAL_MS)
+        self._save_timer.timeout.connect(self._autosave)
+        self._save_timer.start()
 
     def _restore_position(self, path: str, pos: float) -> None:
         """file_loaded 后一次性恢复断点（固定延时对慢盘/网络文件不可靠）。
@@ -397,6 +406,7 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         splitter.setObjectName("MainSplitter")
         splitter.setHandleWidth(1)
+        self.splitter = splitter
 
         self.video_container = QWidget()
         self.video_container.setObjectName("VideoContainer")
@@ -488,19 +498,22 @@ class MainWindow(QMainWindow):
         if not d:
             return
         self._last_dir = d
-        files = sorted([str(p) for p in Path(d).iterdir() if p.suffix.lower() in MEDIA_EXTS])
+        files = expand_media([d])  # 递归收集子目录，排序保证顺序稳定
         if files:
             self.playlist.add_files(files)
             self._play_file(files[0])
 
     def open_paths(self, paths: list[str]) -> None:
-        """单实例/多文件入口：追加到播放列表，空闲则开播第一个。"""
-        self.playlist.add_files(paths)
-        if not self.mpv.filename:
-            self._play_file(paths[0])
+        """单实例/多文件入口：展开后追加到播放列表，空闲则开播第一个。"""
+        media = expand_media(paths)
         self.show()
         self.raise_()
         self.activateWindow()
+        if not media:
+            return
+        self.playlist.add_files(media)
+        if not self.mpv.filename:
+            self._play_file(media[0])
 
     def _play_file(self, path: str):
         self.playlist.mark_playing(path)
@@ -694,18 +707,18 @@ class MainWindow(QMainWindow):
         if event is None:
             return
         urls = [u.toLocalFile() for u in event.mimeData().urls() if u.isLocalFile()]
-        if urls:
-            self.playlist.add_files(urls)
+        media = expand_media(urls)
+        if media:
+            self.playlist.add_files(media)
             if not self.mpv.filename:
-                self._play_file(urls[0])
+                self._play_file(media[0])
 
     # ── 关闭 ──
 
-    def closeEvent(self, event):
-        # 保存播放记忆
+    def _collect_state(self) -> dict:
         geo = self.saveGeometry().data().hex()
         pos = self.mpv.time_pos if self.mpv.filename else None
-        save_state({
+        return {
             "geometry": geo,
             "volume": int(self.mpv.volume),
             "speed": self.mpv.speed,
@@ -719,6 +732,15 @@ class MainWindow(QMainWindow):
             "playlist_index": self.playlist.current_index(),
             "last_dir": self._last_dir,
             "loop_mode": self._loop_mode,
-        })
+            "splitter_sizes": [int(s) for s in self.splitter.sizes()],
+        }
+
+    def _autosave(self) -> None:
+        if self.mpv.filename:  # 空闲时几何等变化由 closeEvent 兜底，不空转写盘
+            save_state(self._collect_state())
+
+    def closeEvent(self, event):
+        self._save_timer.stop()
+        save_state(self._collect_state())
         self.mpv.cleanup()
         super().closeEvent(event)

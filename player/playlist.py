@@ -15,6 +15,7 @@ from PyQt6.QtGui import (
 )
 
 from .icons import icon as svg_icon, palette_for
+from .media_files import expand_media
 
 SUB_EXTS = {".srt", ".ass", ".ssa", ".vtt", ".sub"}
 
@@ -329,7 +330,7 @@ class PlaylistPanel(QWidget):
     def _handle_dropped(self, paths: list[str]) -> None:
         """文件/字幕混拖的统一入口（面板空白区与列表区共用）。"""
         subs = [p for p in paths if Path(p).suffix.lower() in SUB_EXTS]
-        media = [p for p in paths if p not in subs]
+        media = expand_media([p for p in paths if p not in subs])
         if subs:
             self.subtitle_files_dropped.emit(subs)
         if media:

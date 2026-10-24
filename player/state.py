@@ -136,6 +136,12 @@ def sanitize(data: dict) -> dict:
     if isinstance(files, list):
         out["playlist_files"] = [p for p in files if isinstance(p, str) and p]
 
+    sizes = data.get("splitter_sizes")
+    if isinstance(sizes, list) and len(sizes) == 2:
+        nums = [_num(v) for v in sizes]
+        if all(n is not None and n >= 1 for n in nums):
+            out["splitter_sizes"] = [int(n) for n in nums]
+
     idx = _num(data.get("playlist_index"))
     if idx is not None:
         out["playlist_index"] = max(-1, int(idx))
