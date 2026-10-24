@@ -11,3 +11,4 @@ bin/
 Thumbs.db
 .redcode/
 .attachments/
+state.json
